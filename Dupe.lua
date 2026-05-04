@@ -1,119 +1,101 @@
 --[[ 
-    VANGUARD TITAN V11.0 - MEMORY OVERRIDE
-    - Method: GC Scanning (Quét bộ nhớ Knit Controller).
-    - Action: Ép Cooldown, Debounce, ReloadTime về 0.
-    - Animation: Tăng tốc độ Animation lên 100x để bỏ qua 2s.
+    VANGUARD TITAN V12.0 - ANIMATION KILLER
+    - Method: Hooking Animation & Wait (Bỏ qua 2s chờ của súng).
+    - Target: Knit Sniper Controller.
+    - Feature: Ép súng kết thúc trạng thái "Đang nạp đạn" ngay lập tức.
 ]]
 
 local Services = setmetatable({}, {__index = function(t, k) return game:GetService(k) end})
 local LPlr = Services.Players.LocalPlayer
 local RunService = Services.RunService
-local Camera = workspace.CurrentCamera
 
 local Config = {
     Enabled = false,
-    FireDelay = 0.05,
-    Accent = Color3.fromRGB(255, 0, 255)
+    Accent = Color3.fromRGB(255, 255, 255)
 }
 
--- 1. GUI
+-- 1. GUI TỐI GIẢN
 local ScreenGui = Instance.new("ScreenGui", LPlr.PlayerGui)
-ScreenGui.Name = "TitanV11"
+ScreenGui.Name = "TitanV12"
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 300, 0, 220)
-Main.Position = UDim2.new(0.5, 160, 0.4, 0)
-Main.BackgroundColor3 = Color3.fromRGB(15, 0, 15)
+Main.Size = UDim2.new(0, 250, 0, 150)
+Main.Position = UDim2.new(0.5, 160, 0.5, 0)
+Main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 Instance.new("UICorner", Main)
 Main.Active = true
 Main.Draggable = true
 
 local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Text = "TITAN V11 - MEMORY HACK"
-Title.TextSize = 20
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "TITAN V12 - FINAL"
 Title.TextColor3 = Config.Accent
-Title.Font = Enum.Font.GothamBold
-Title.BackgroundColor3 = Color3.fromRGB(30, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
--- 2. HÀM QUÉT BỘ NHỚ (MÓC KNIT CONTROLLER)
-local function BypassMemory()
-    -- Quét toàn bộ các bảng (Tables) trong bộ nhớ game
-    for _, v in pairs(getgc(true)) do
-        if type(v) == "table" then
-            -- Tìm các bảng có chứa thông số của súng/sniper
-            if v.FireRate or v.Cooldown or v.ReloadTime or v.NextFire then
-                v.FireRate = 0
-                v.Cooldown = 0
-                v.ReloadTime = 0
-                v.NextFire = 0
-                v.Debounce = false
-            end
-        end
-    end
-end
-
--- 3. HÀM TĂNG TỐC ANIMATION (BỎ QUA 2S CHỜ)
-local function SpeedUpAnimations()
+-- 2. HÀM "GIẾT" ANIMATION (BỎ QUA 2S ĐỢI)
+local function KillCooldown()
+    -- Cách 1: Ép mọi Animation nạp đạn phải kết thúc trong 0.1s
     local char = LPlr.Character
     if char and char:FindFirstChild("Humanoid") then
         local animator = char.Humanoid:FindFirstChildOfClass("Animator")
         if animator then
             for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                -- Ép tốc độ animation lên cực cao để nó kết thúc ngay lập tức
-                track:AdjustSpeed(100)
+                -- Nếu thấy animation liên quan đến súng (Sniper)
+                if track.Name:lower():find("sniper") or track.Name:lower():find("bolt") then
+                    track:AdjustSpeed(100) -- Chạy nhanh gấp 100 lần
+                end
+            end
+        end
+    end
+
+    -- Cách 2: Quét bộ nhớ để tìm trạng thái "Reloading" và ép nó về false
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" then
+            if rawget(v, "Reloading") ~= nil or rawget(v, "IsAiming") ~= nil then
+                v.Reloading = false
+                v.Cooldown = 0
+                v.NextFire = 0
             end
         end
     end
 end
 
--- 4. LOGIC BẮN (SNIPER REMOTE)
-local function GetShootRemote()
+-- 3. NÃ REMOTE (DỰA TRÊN ẢNH CỦA ÔNG)
+local function FireRemote()
     local RS = game:GetService("ReplicatedStorage")
+    local remote = nil
     for _, v in pairs(RS:GetDescendants()) do
-        if v:IsA("RemoteEvent") and v.Name == "ShootSniper" then return v end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait() do
-        if Config.Enabled then
-            BypassMemory() -- Liên tục ép bộ nhớ về 0
-            SpeedUpAnimations() -- Bỏ qua animation nạp đạn
-            
-            local remote = GetShootRemote()
-            if remote then
-                -- Lấy tâm màn hình (FPS)
-                local targetPos = Camera.CFrame.Position + (Camera.CFrame.LookVector * 1000)
-                remote:FireServer(targetPos)
-            end
-            task.wait(Config.FireDelay)
+        if v:IsA("RemoteEvent") and v.Name == "ShootSniper" then
+            remote = v break
         end
     end
-end)
 
--- 5. NÚT ĐIỀU KHIỂN
-local Toggle = Instance.new("TextButton", Main)
-Toggle.Size = UDim2.new(0.9, 0, 0, 60)
-Toggle.Position = UDim2.new(0.05, 0, 0, 65)
-Toggle.Text = "MEMORY OVERRIDE: OFF"
-Toggle.TextSize = 18
-Toggle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Toggle.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", Toggle)
+    if remote then
+        local cam = workspace.CurrentCamera
+        local targetPos = cam.CFrame.Position + (cam.CFrame.LookVector * 1000)
+        remote:FireServer(targetPos)
+    end
+end
 
-Toggle.MouseButton1Click:Connect(function()
+-- 4. NÚT KÍCH HOẠT
+local btn = Instance.new("TextButton", Main)
+btn.Size = UDim2.new(0.9, 0, 0, 50)
+btn.Position = UDim2.new(0.05, 0, 0, 50)
+btn.Text = "FORCE RAPID: OFF"
+btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+btn.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", btn)
+
+btn.MouseButton1Click:Connect(function()
     Config.Enabled = not Config.Enabled
-    Toggle.Text = Config.Enabled and "OVERRIDE ACTIVE" or "MEMORY OVERRIDE: OFF"
-    Toggle.TextColor3 = Config.Enabled and Config.Accent or Color3.new(1, 1, 1)
+    btn.Text = Config.Enabled and "ACTIVE (SẤY)" or "FORCE RAPID: OFF"
+    btn.BackgroundColor3 = Config.Enabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(40, 40, 40)
 end)
 
-local close = Instance.new("TextButton", Main)
-close.Size = UDim2.new(0.9, 0, 0, 40)
-close.Position = UDim2.new(0.05, 0, 0, 140)
-close.Text = "TẮT MENU"
-close.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-Instance.new("UICorner", close)
-close.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+RunService.Heartbeat:Connect(function()
+    if Config.Enabled then
+        KillCooldown()
+        FireRemote()
+    end
+end)
 
-print("🧠 TITAN V11 LOADED. Đang ép bộ nhớ Sniper...")
+print("💀 TITAN V12 - Đòn cuối cùng để phá Cooldown...")
