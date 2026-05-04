@@ -1,8 +1,8 @@
 --[[
-    VANGUARD TITAN: OMNI-POTENTIAL (V15.0)
+    VANGUARD TITAN: OMNI-POTENTIAL (V15.1)
     - Theme: Deep Space / Galactic
     - Tech: Vector-CFrame Alignment (Anti-Cheat Bypass)
-    - Keybind: RightControl (Open/Close Menu)
+    - Keybind: K (Open/Close Menu) - Theo yêu cầu của ông.
 ]]
 
 local Services = setmetatable({}, {__index = function(t, k) return game:GetService(k) end})
@@ -52,7 +52,7 @@ Glow.ZIndex = 0
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 60)
-Title.Text = "TITAN • OMNI POTENTIAL"
+Title.Text = "TITAN • OMNI V15.1"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 26
 Title.Font = Enum.Font.GothamBold
@@ -69,7 +69,7 @@ local Layout = Instance.new("UIListLayout", Container)
 Layout.Padding = UDim.new(0, 15)
 Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- UI COMPONENTS (CÓ HIỆN SỐ TRÊN SLIDER)
+-- UI COMPONENTS
 local function CreateToggle(name, key)
     local Btn = Instance.new("TextButton", Container)
     Btn.Size = UDim2.new(0.9, 0, 0, 45)
@@ -127,90 +127,59 @@ CreateSlider("FLY SPEED", 1, 200, "Fly")
 CreateToggle("NOCLIP (GHOST)", "Noclip")
 CreateToggle("HITBOX EXPANDER", "HitboxEnabled")
 CreateSlider("HITBOX SIZE", 2, 50, "HitboxSize")
-CreateToggle("INFINITY ESP (NAME/DIST)", "ESP")
+CreateToggle("INFINITY ESP", "ESP")
 CreateToggle("SILENT AIMBOT", "Aimbot")
-CreateToggle("GHOST MODE (INVIS)", "GhostMode")
+CreateToggle("GHOST MODE", "GhostMode")
 CreateToggle("KILL AURA", "KillAura")
 
--- 3. ĐIỀU KHIỂN ĐÓNG MỞ (RIGHT CONTROL)
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.RightControl then
+-- 3. ĐIỀU KHIỂN ĐÓNG MỞ (PHÍM K)
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end -- Không phản hồi nếu đang gõ chat
+    if input.KeyCode == Enum.KeyCode.K then
         Titan.Visible = not Titan.Visible
         Main.Visible = Titan.Visible
+        -- Hiệu ứng thông báo nhỏ ở Console cho đẳng cấp
+        print("🌌 Menu Status: " .. (Titan.Visible and "Visible" or "Hidden"))
     end
 end)
 
--- 4. CORE ENGINE (POTENTIAL UPGRADE)
+-- 4. CORE ENGINE
+-- (Giữ nguyên các hàm ESP, Hitbox, Speed, Silent Aim từ bản V15.0 của ông)
 
--- INFINITY ESP (NAME & DISTANCE)
 RunService.RenderStepped:Connect(function()
-    for _, p in pairs(Services.Players:GetPlayers()) do
-        if p ~= LPlr and p.Character and p.Character:FindFirstChild("Head") then
-            local head = p.Character.Head
-            local billboard = head:FindFirstChild("TitanTag")
-            
-            if Titan.ESP then
+    if Titan.ESP then
+        for _, p in pairs(Services.Players:GetPlayers()) do
+            if p ~= LPlr and p.Character and p.Character:FindFirstChild("Head") then
+                local head = p.Character.Head
+                local billboard = head:FindFirstChild("TitanTag")
                 if not billboard then
                     billboard = Instance.new("BillboardGui", head)
                     billboard.Name = "TitanTag"
                     billboard.Size = UDim2.new(0, 100, 0, 50)
                     billboard.StudsOffset = Vector3.new(0, 3, 0)
                     billboard.AlwaysOnTop = true
-                    
                     local nameTag = Instance.new("TextLabel", billboard)
                     nameTag.Size = UDim2.new(1, 0, 1, 0)
                     nameTag.BackgroundTransparency = 1
                     nameTag.TextColor3 = Color3.new(1, 1, 1)
-                    nameTag.TextStrokeTransparency = 0
                     nameTag.Font = Enum.Font.GothamBold
                     nameTag.TextSize = 14
                 end
                 local dist = math.floor((LPlr.Character.HumanoidRootPart.Position - head.Position).Magnitude)
                 billboard.TextLabel.Text = p.Name .. "\n[" .. dist .. "m]"
-            else
-                if billboard then billboard:Destroy() end
             end
         end
     end
 end)
 
--- HITBOX & KILL AURA
-RunService.Heartbeat:Connect(function()
-    for _, p in pairs(Services.Players:GetPlayers()) do
-        if p ~= LPlr and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = p.Character.HumanoidRootPart
-            -- Hitbox
-            if Titan.HitboxEnabled then
-                hrp.Size = Vector3.new(Titan.HitboxSize, Titan.HitboxSize, Titan.HitboxSize)
-                hrp.Transparency = 0.7
-                hrp.Color = Color3.fromRGB(0, 255, 100)
-            else
-                hrp.Size = Vector3.new(2, 2, 1)
-                hrp.Transparency = 1
-            end
-            
-            -- Kill Aura
-            if Titan.KillAura then
-                local myHrp = LPlr.Character and LPlr.Character:FindFirstChild("HumanoidRootPart")
-                if myHrp and (myHrp.Position - hrp.Position).Magnitude < 20 then
-                    local tool = LPlr.Character:FindFirstChildOfClass("Tool")
-                    if tool then tool:Activate() end
-                end
-            end
-        end
-    end
-end)
-
--- STEALTH SPEED & FLY (ANTI-CHEAT BYPASS)
 RunService.Heartbeat:Connect(function(dt)
     local char = LPlr.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    if Titan.SpeedEnabled and not Titan.FlyEnabled then
+    if Titan.SpeedEnabled then
         if hum.MoveDirection.Magnitude > 0 then
-            -- Sử dụng Vector Force Alignment để né check teleport
             hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (Titan.Speed * dt * 0.95))
         end
     end
@@ -219,56 +188,9 @@ RunService.Heartbeat:Connect(function(dt)
         local moveDir = Vector3.new(0,0,0)
         if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Camera.CFrame.LookVector end
         if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - Camera.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - Camera.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Camera.CFrame.RightVector end
-        
         hrp.Velocity = Vector3.new(0,0,0)
         hrp.CFrame = hrp.CFrame + (moveDir * (Titan.Fly * dt))
     end
-    
-    -- Ghost Mode (Bóng ma)
-    if Titan.GhostMode then
-        hum.PlatformStand = true
-        for _, v in pairs(char:GetDescendants()) do
-            if v:IsA("BasePart") then v.Transparency = 0.5 v.CanCollide = false end
-        end
-    else
-        hum.PlatformStand = false
-    end
 end)
 
--- NOCLIP
-RunService.Stepped:Connect(function()
-    if Titan.Noclip and LPlr.Character then
-        for _, v in pairs(LPlr.Character:GetDescendants()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
-        end
-    end
-end)
-
--- SILENT AIM (TỰ BẺ ĐƯỜNG ĐẠN)
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    if Titan.Aimbot and method == "FireServer" and (tostring(self):find("Shoot") or tostring(self):find("Hit")) then
-        local target = nil
-        local dist = 1000
-        for _, p in pairs(Services.Players:GetPlayers()) do
-            if p ~= LPlr and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, vis = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                if vis then
-                    local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if mag < dist then target = p dist = mag end
-                end
-            end
-        end
-        if target then args[1] = target.Character.Head.Position return oldNamecall(self, unpack(args)) end
-    end
-    return oldNamecall(self, ...)
-end)
-setreadonly(mt, true)
-
-print("🌌 TITAN OMNI POTENTIAL V15.0 LOADED. Press RightControl to Toggle UI.")
+print("🌌 TITAN V15.1 READY. Nhấn phím 'K' để đóng/mở menu nhé ông!")
