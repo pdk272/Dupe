@@ -1,29 +1,30 @@
 --[[ 
-    VANGUARD TITAN V9.1 - SNIPER OVERLOAD
-    - Target: ShootSniper Remote (Dựa trên ảnh của ông)
-    - Method: Knit Framework Bypass
-    - UI: Chỉnh Delay cực nhạy.
+    VANGUARD TITAN V9.2 - FPS EDITION
+    - Target: ShootSniper Remote (Knit Framework)
+    - Aiming: Center Screen (Dành riêng cho góc nhìn thứ nhất)
+    - Feature: Bypass delay 1s của Sniper.
 ]]
 
 local Services = setmetatable({}, {__index = function(t, k) return game:GetService(k) end})
 local LPlr = Services.Players.LocalPlayer
 local RunService = Services.RunService
 local UIS = Services.UserInputService
+local Camera = workspace.CurrentCamera
 
 local Config = {
     Enabled = false,
-    FireDelay = 0.1, -- 0.1s là sấy như súng máy
-    Accent = Color3.fromRGB(0, 255, 255)
+    FireDelay = 0.1, -- Chỉnh delay thấp để sấy nhanh
+    Accent = Color3.fromRGB(0, 255, 150) -- Màu xanh Neon FPS
 }
 
--- 1. GUI (THIẾT KẾ SNIPER)
+-- 1. GUI (THIẾT KẾ FPS GỌN GÀNG)
 local ScreenGui = Instance.new("ScreenGui", LPlr.PlayerGui)
-ScreenGui.Name = "TitanSniperRapid"
+ScreenGui.Name = "TitanFPSSniper"
 ScreenGui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 300, 0, 280)
-Main.Position = UDim2.new(0.5, -150, 0.4, 0)
+Main.Position = UDim2.new(0.5, 150, 0.4, 0) -- Đẩy sang phải để không che tâm ngắm
 Main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 Instance.new("UICorner", Main)
 Main.Active = true
@@ -31,24 +32,17 @@ Main.Draggable = true
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Text = "TITAN V9.1 - SNIPER"
+Title.Text = "TITAN V9.2 - FPS SNIPER"
 Title.TextSize = 22
 Title.TextColor3 = Config.Accent
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Instance.new("UICorner", Title)
 
--- 2. HÀM TÌM REMOTE (DÒ THEO ẢNH)
+-- 2. HÀM TÌM REMOTE (DÒ THEO ẢNH CỦA ÔNG)
 local function GetSniperRemote()
-    -- Cách 1: Dò trực tiếp theo cấu trúc Knit trong ảnh
     local RS = game:GetService("ReplicatedStorage")
-    local success, result = pcall(function()
-        return RS.Packages._Index["sleitnick_net@0.2.0"].net.RE.ShootSniper
-    end)
-    
-    if success and result then return result end
-    
-    -- Cách 2: Dò quét (Nếu phiên bản @0.2.0 thay đổi)
+    -- Dò quét trong Packages (Framework Knit)
     for _, v in pairs(RS:GetDescendants()) do
         if v:IsA("RemoteEvent") and v.Name == "ShootSniper" then
             return v
@@ -61,7 +55,7 @@ end
 local Toggle = Instance.new("TextButton", Main)
 Toggle.Size = UDim2.new(0.9, 0, 0, 60)
 Toggle.Position = UDim2.new(0.05, 0, 0, 65)
-Toggle.Text = "SNIPER RAPID: OFF"
+Toggle.Text = "RAPID FIRE: OFF"
 Toggle.TextSize = 18
 Toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Toggle.TextColor3 = Color3.new(1, 1, 1)
@@ -69,11 +63,11 @@ Instance.new("UICorner", Toggle)
 
 Toggle.MouseButton1Click:Connect(function()
     Config.Enabled = not Config.Enabled
-    Toggle.Text = Config.Enabled and "SNIPER RAPID: ON" or "SNIPER RAPID: OFF"
+    Toggle.Text = Config.Enabled and "RAPID FIRE: ON" or "RAPID FIRE: OFF"
     Toggle.TextColor3 = Config.Enabled and Config.Accent or Color3.new(1, 1, 1)
 end)
 
--- 4. THANH CHỈNH TỐC ĐỘ
+-- 4. THANH CHỈNH DELAY
 local DelayLabel = Instance.new("TextLabel", Main)
 DelayLabel.Size = UDim2.new(1, 0, 0, 30)
 DelayLabel.Position = UDim2.new(0, 0, 0, 130)
@@ -107,18 +101,17 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
--- 5. LOGIC NÃ ĐẠN (MÓC VÀO REMOTE TRONG ẢNH)
+-- 5. LOGIC BẮN FPS (LẤY TÂM MÀN HÌNH)
 task.spawn(function()
     while task.wait() do
         if Config.Enabled then
             local remote = GetSniperRemote()
             if remote then
-                -- Sniper thường cần tọa độ chuột (mouse.Hit.p) để bắn trúng
-                local mouse = LPlr:GetMouse()
-                local target = mouse.Hit.Position
+                -- Trong FPS, hướng bắn là hướng Camera nhìn tới
+                local targetPos = Camera.CFrame.Position + (Camera.CFrame.LookVector * 1000)
                 
-                -- Nã lệnh!
-                remote:FireServer(target)
+                -- Một số game yêu cầu Raycast, nhưng đa số chỉ cần Target Position
+                remote:FireServer(targetPos)
             end
             task.wait(Config.FireDelay)
         end
@@ -134,4 +127,4 @@ Close.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Close)
 Close.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
-print("🎯 TITAN V9.1 LOADED. Target: ShootSniper.")
+print("🎯 FPS SNIPER V9.2 LOADED. Nhắm thẳng tâm và sấy thôi!")
