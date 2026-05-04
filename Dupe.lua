@@ -1,8 +1,8 @@
 --[[ 
-    VANGUARD TITAN V6.0 - TRADE / DUPE LOGIC
-    - Auto Trade: Giữ E 0.1s thay vì 2s để vào GUI cực nhanh.
-    - Fast Ready: Tự động nhấn Ready và bỏ qua Countdown 3s.
-    - Stealth Speed: Giữ nguyên để di chuyển farm pet.
+    VANGUARD TITAN V6.1 - PURE DUPE & TRADE
+    - Chỉ giữ lại tính năng can thiệp Trade/Dupe.
+    - Fast Interact: Chạm E 0.1s để mở bảng Trade/Steal.
+    - Trade Bypass: Tự động Ready và nã tín hiệu kết thúc giao dịch.
 ]]
 
 local Services = setmetatable({}, {__index = function(t, k) return game:GetService(k) end})
@@ -11,38 +11,37 @@ local RunService = Services.RunService
 local UIS = Services.UserInputService
 
 local Config = {
-    SpeedValue = 16,
-    Enabled = false,
-    Accent = Color3.fromRGB(0, 255, 120), -- Màu xanh Dupe
+    Accent = Color3.fromRGB(0, 255, 120), -- Xanh lá chuyên Dupe
     AutoReady = false,
     FastInteract = true
 }
 
--- 1. GUI (THIẾT KẾ DUPE CHUYÊN NGHIỆP)
+-- 1. GUI (TỐI GIẢN CHỈ CÓ DUPE)
 local ScreenGui = Instance.new("ScreenGui", LPlr.PlayerGui)
-ScreenGui.Name = "TitanV6Dupe"
+ScreenGui.Name = "TitanPureDupe"
+ScreenGui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 320, 0, 400)
-Main.Position = UDim2.new(0.5, -160, 0.3, 0)
+Main.Size = UDim2.new(0, 300, 0, 250)
+Main.Position = UDim2.new(0.5, -150, 0.4, 0)
 Main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-Instance.new("UICorner", Main)
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Main.Active = true
 Main.Draggable = true
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Text = "TITAN V6.0 - DUPE MODE"
-Title.TextSize = 22
+Title.Text = "TITAN V6.1 - DUPE ONLY"
+Title.TextSize = 20
 Title.TextColor3 = Config.Accent
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Instance.new("UICorner", Title)
 
--- 2. TÍNH NĂNG TRADE & DUPE
-local function CreateToggle(text, pos, callback)
+-- 2. HÀM TẠO NÚT
+local function CreateButton(text, pos, callback)
     local btn = Instance.new("TextButton", Main)
-    btn.Size = UDim2.new(0.9, 0, 0, 50)
+    btn.Size = UDim2.new(0.9, 0, 0, 55)
     btn.Position = pos
     btn.Text = text
     btn.TextSize = 18
@@ -53,68 +52,60 @@ local function CreateToggle(text, pos, callback)
     return btn
 end
 
-local readyToggle = CreateToggle("AUTO READY: OFF", UDim2.new(0.05, 0, 0, 60), function()
-    Config.AutoReady = not Config.AutoReady
-end)
-
--- LOGIC AUTO INTERACT (Bỏ qua 2 giây giữ E)
+-- 3. CƠ CHẾ FAST INTERACT (0.1s GIỮ E)
+-- Dùng để cướp lượt Steal hoặc vào Trade ngay lập tức
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.5) do
         if Config.FastInteract then
-            -- Quét các vật thể có ProximityPrompt (nút E)
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("ProximityPrompt") then
-                    v.HoldDuration = 0.1 -- Giảm từ 2s xuống 0.1s
+                    v.HoldDuration = 0.1 -- Ép tất cả nút giữ E về 0.1s
                 end
             end
         end
     end
 end)
 
--- LOGIC FAST TRADE (Nã Remote khi vào GUI)
+-- 4. CƠ CHẾ AUTO READY & BYPASS COUNTDOWN
+local readyBtn = CreateButton("AUTO READY: OFF", UDim2.new(0.05, 0, 0, 70), function()
+    Config.AutoReady = not Config.AutoReady
+end)
+
 RunService.RenderStepped:Connect(function()
+    readyBtn.Text = "AUTO READY: " .. (Config.AutoReady and "ON" or "OFF")
+    readyBtn.TextColor3 = Config.AutoReady and Config.Accent or Color3.new(1,1,1)
+    
     if Config.AutoReady then
-        -- Tìm cái GUI Trade của game (ông cần check đúng tên GUI này)
-        local TradeGui = LPlr.PlayerGui:FindFirstChild("TradeGui") or LPlr.PlayerGui:FindFirstChild("Trading")
-        if TradeGui and TradeGui.Enabled then
-            -- Tìm nút Ready hoặc Accept
-            local Remote = TradeGui:FindFirstChild("AcceptRemote", true) or TradeGui:FindFirstChild("ReadyRemote", true)
-            if Remote and Remote:IsA("RemoteEvent") then
-                Remote:FireServer(true) -- Nã lệnh Ready liên tục để bypass countdown
+        -- Tự động tìm GUI Trade và nã Remote Ready
+        -- Lưu ý: Nếu game đổi tên GUI, ông cần dùng Remote Spy để check
+        local playerGui = LPlr:FindFirstChild("PlayerGui")
+        local tradeGui = playerGui:FindFirstChild("TradeGui", true) or playerGui:FindFirstChild("Trading", true)
+        
+        if tradeGui and tradeGui.Enabled then
+            -- Tìm Remote để nã lệnh chấp nhận
+            local acceptRem = tradeGui:FindFirstChild("Accept", true) or tradeGui:FindFirstChild("Ready", true) or tradeGui:FindFirstChild("Remote", true)
+            if acceptRem and acceptRem:IsA("RemoteEvent") then
+                acceptRem:FireServer(true)
             end
         end
     end
 end)
 
--- 3. SPEED STEALTH (GIỮ LẠI ĐỂ FARM)
-local speedBtn = CreateToggle("STEALTH SPEED: OFF", UDim2.new(0.05, 0, 0, 120), function()
-    Config.Enabled = not Config.Enabled
-end)
-
-RunService.Heartbeat:Connect(function(dt)
-    if Config.Enabled and LPlr.Character and LPlr.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = LPlr.Character.HumanoidRootPart
-        local hum = LPlr.Character:FindFirstChildOfClass("Humanoid")
-        if hum.MoveDirection.Magnitude > 0 then
-            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (Config.SpeedValue * dt * 0.88))
-        end
-    end
-end)
-
--- Cập nhật trạng thái nút
-RunService.RenderStepped:Connect(function()
-    readyToggle.Text = "AUTO READY: " .. (Config.AutoReady and "ON" or "OFF")
-    readyToggle.TextColor3 = Config.AutoReady and Config.Accent or Color3.new(1,1,1)
-    speedBtn.Text = "SPEED: " .. (Config.Enabled and "ON" or "OFF")
-    speedBtn.TextColor3 = Config.Enabled and Config.Accent or Color3.new(1,1,1)
-end)
-
-CreateToggle("SERVER HOP", UDim2.new(0.05, 0, 0, 180), function()
+-- 5. SERVER HOP (PHỤC VỤ DUPE KHI CẦN ĐỔI SERVER NHANH)
+CreateButton("SERVER HOP", UDim2.new(0.05, 0, 0, 135), function()
     local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
     local data = Services.HttpService:JSONDecode(game:HttpGet(url)).data
     Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, data[math.random(1, #data)].id)
 end)
 
-CreateToggle("TẮT MENU", UDim2.new(0.05, 0, 0, 340), function() ScreenGui:Destroy() end).BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+-- NÚT TẮT
+local close = Instance.new("TextButton", Main)
+close.Size = UDim2.new(0.9, 0, 0, 40)
+close.Position = UDim2.new(0.05, 0, 0, 200)
+close.Text = "CLOSE MENU"
+close.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+close.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", close)
+close.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
-print("⚡ TITAN V6.0 DUPE LOADED. Trade fast, stay safe.")
+print("💎 TITAN V6.1 - DUPE MODE LOADED.")
