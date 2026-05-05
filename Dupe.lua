@@ -12,14 +12,16 @@ local TARGET_PETS = {
     "tictac sahur","la supreme combinasion","ketupat kepat",
     "ketchuru and musturu","burguro and fryuro","cooki and milki",
     "capitano moby","cerberus","skibidi toilet",
-    "strawberry elephant","meowl"
+    "strawberry elephant","Lavadorito spinito"
 }
 
 -- ===== SERVICES =====
 local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 
+-- ===== STATE =====
 local FOUND = {}
+local FOUND_COUNT = 0
 local SENT = false
 
 -- ===== NORMALIZE =====
@@ -38,19 +40,38 @@ local function MatchPet(name)
     end
 end
 
+-- ===== ADD =====
+local function AddPet(pet)
+    if not FOUND[pet] then
+        FOUND[pet] = true
+        FOUND_COUNT += 1
+        print("🎯 FOUND:", pet)
+    end
+end
+
+-- ===== CHECK =====
+local function CheckModel(obj)
+    if not obj:IsA("Model") then return end
+
+    local pet = MatchPet(obj.Name)
+    if pet then
+        AddPet(pet)
+    end
+end
+
+-- ===== BUILD =====
+local function BuildList()
+    local text = ""
+    for pet in pairs(FOUND) do
+        text = text .. pet .. "\n"
+    end
+    return text
+end
+
 -- ===== WEBHOOK =====
 local function SendWebhook()
     if SENT then return end
-
-    local text = ""
-    local count = 0
-
-    for pet in pairs(FOUND) do
-        text = text .. pet .. "\n"
-        count += 1
-    end
-
-    if count == 0 then return end
+    if FOUND_COUNT == 0 then return end
 
     local req =
         (syn and syn.request) or
@@ -67,51 +88,48 @@ local function SendWebhook()
         Headers = {["Content-Type"] = "application/json"},
         Body = HttpService:JSONEncode({
             embeds = {{
-                title = "🎯 PET TRONG BASE",
-                description = "```"..text.."```\nJobId: "..game.JobId.."\n[JOIN]("..link..")",
+                title = "🎯 PET TRONG SERVER ("..FOUND_COUNT..")",
+                description = "```"..BuildList().."```\nJobId: "..game.JobId.."\n[JOIN]("..link..")",
                 color = 65280
             }}
         })
     })
 
     SENT = true
-    print("📡 SENT")
+    print("📡 SENT WEBHOOK")
 end
 
--- ===== CHECK MODEL =====
-local function CheckModel(obj)
-    if not obj:IsA("Model") then return end
-
-    local pet = MatchPet(obj.Name)
-    if pet then
-        if not FOUND[pet] then
-            FOUND[pet] = true
-            print("🎯 FOUND:", pet)
-            SendWebhook()
-        end
-    end
-end
-
--- ===== SCAN BASE =====
-local function ScanBases()
-    for _, obj in ipairs(workspace:GetChildren()) do
-        CheckModel(obj)
-
-        for _, sub in ipairs(obj:GetDescendants()) do
-            CheckModel(sub)
-        end
-    end
+-- ===== HOP =====
+local function HopServer()
+    print("🚀 HOP SERVER")
+    TeleportService:Teleport(game.PlaceId)
 end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ SCAN BASE MODE")
+    print("⚡ START SCAN")
 
-    -- scan nhẹ 1 lần
-    ScanBases()
+    -- scan nhanh 1 lần
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        CheckModel(obj)
+    end
 
-    -- bắt pet spawn trong base
+    -- bắt pet spawn thêm
     workspace.DescendantAdded:Connect(CheckModel)
 
-    print("✅ READY - ĐỢI PET")
+    task.wait(5) -- cho load base
+
+    if FOUND_COUNT > 0 then
+        -- ✅ GỬI NGAY
+        SendWebhook()
+
+        -- ⏳ ĐỢI ACC CHÍNH VÀO
+        print("⏳ WAIT 45s FOR MAIN ACC")
+        task.wait(45)
+    else
+        print("❌ NO PET")
+        task.wait(3)
+    end
+
+    HopServer()
 end)
