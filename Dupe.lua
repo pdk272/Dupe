@@ -1,129 +1,104 @@
 --[[
-    📡 TITAN ELITE FINDER V33.0
-    - Fixed: Lỗi nil value khi gọi GUI.
-    - Added: Chicleteirina, Bicicleterina.
-    - Logic: Tự động nhận diện Executor (Fix lỗi gửi Webhook).
+    💀 TITAN BOT: SILENT ASSASSIN (NO-GUI VERSION)
+    - Fix triệt để lỗi CoreGui nil value (Không dùng bất kỳ GUI nào).
+    - Nhiệm vụ: Tự động nhảy Server -> Tìm Pet -> Báo Discord -> Lặp lại.
+    - Status: Chạy ngầm 100%, im lặng tuyệt đối.
 ]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
-local Players = game:GetService("Players")
-local LPlr = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
 
--- ================= CẤU HÌNH HỆ THỐNG =================
+-- ================= CẤU HÌNH WEBHOOK =================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 
 local PETS_TO_FIND = {
     "garama",
+    "hugedog",
     "chicleteirina",
-    "bicicleterina",
-    "hugedog"
+    "bicicleterina"
 }
--- =====================================================
+-- ===================================================
 
-local Titan = { Visible = true, FastE = true }
-local request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local LPlr = game:GetService("Players").LocalPlayer
 
--- 1. GIAO DIỆN CHÍNH (FIXED DRAG & SIZE)
-local ScreenGui = Instance.new("ScreenGui", LPlr:WaitForChild("PlayerGui"))
-ScreenGui.Name = "TitanEliteFinder"
-ScreenGui.ResetOnSpawn = false
+-- BỘ GỬI TÍN HIỆU ĐA NĂNG
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 350, 0, 300)
-Main.Position = UDim2.new(0.5, -175, 0.4, -150)
-Main.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-Main.BorderSizePixel = 0
-Main.Active = true
-Main.Draggable = true 
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+local function NotifyDiscord(petName)
+    if not httpRequest then 
+        warn("Executor không hỗ trợ Webhook!")
+        return 
+    end
 
-local Header = Instance.new("Frame", Main)
-Header.Size = UDim2.new(1, 0, 0, 40)
-Header.BackgroundColor3 = Color3.new(1,1,1)
-local Grad = Instance.new("UIGradient", Header)
-Grad.Color = ColorSequence.new(Color3.fromRGB(150, 0, 255), Color3.fromRGB(0, 255, 255))
-Instance.new("UICorner", Header)
-
-local Title = Instance.new("TextLabel", Header)
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.Text = "  📡 TITAN ELITE FINDER V33"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 15
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.BackgroundTransparency = 1
-
--- 2. CÁC THÀNH PHẦN ĐIỀU KHIỂN
-local function CreateBtn(text, pos, color, callback)
-    local b = Instance.new("TextButton", Main)
-    b.Size = UDim2.new(0.9, 0, 0, 45)
-    b.Position = pos
-    b.BackgroundColor3 = color
-    b.Text = text
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 14
-    Instance.new("UICorner", b)
-    b.MouseButton1Click:Connect(function() callback(b) end)
-    return b
-end
-
-local JobInput = Instance.new("TextBox", Main)
-JobInput.Size = UDim2.new(0.9, 0, 0, 40)
-JobInput.Position = UDim2.new(0.05, 0, 0.2, 0)
-JobInput.PlaceholderText = "DÁN JOBID TỪ DISCORD..."
-JobInput.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-JobInput.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", JobInput)
-
-CreateBtn("JOIN SERVER HIỆN TẠI", UDim2.new(0.05, 0, 0.4, 0), Color3.fromRGB(0, 120, 255), function()
-    local id = JobInput.Text:gsub("%s+", "")
-    if id ~= "" then TeleportService:TeleportToPlaceInstance(game.PlaceId, id, LPlr) end
-end)
-
-CreateBtn("⚡ INSTANT E (0s): ON", UDim2.new(0.05, 0, 0.6, 0), Color3.fromRGB(0, 180, 100), function(b)
-    Titan.FastE = not Titan.FastE
-    b.Text = "⚡ INSTANT E (0s): " .. (Titan.FastE and "ON" or "OFF")
-    b.BackgroundColor3 = Titan.FastE and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(180, 50, 50)
-end)
-
--- 3. LOGIC GỬI WEBHOOK (Dành cho acc phụ cắm Bot)
-local function SendMissions(name)
-    if request then
-        pcall(function()
-            request({
-                Url = WEBHOOK_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({
-                    ["embeds"] = {{
-                        ["title"] = "🎯 MỤC TIÊU ĐÃ XUẤT HIỆN!",
-                        ["description"] = "**Pet:** `" .. name .. "`\n**JobId:**\n```" .. game.JobId .. "
+    local success, err = pcall(function()
+        httpRequest({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                ["content"] = "||@everyone||",
+                ["embeds"] = {{
+                    ["title"] = "🎯 TÌM THẤY MỤC TIÊU HIẾM!",
+                    ["description"] = "**Tên Pet:** `" .. petName .. "`\n**Mã Server (JobId):**\n```" .. game.JobId .. "
 ```",
-                        ["color"] = 0x00FFFF
-                    }}
-                })
+                    ["color"] = tonumber("0x1abc9c")
+                }}
             })
-        end)
+        })
+    end)
+    
+    if success then
+        print("✅ Đã bắn tín hiệu về Discord!")
+    else
+        warn("❌ Lỗi gửi Discord: " .. tostring(err))
     end
 end
 
--- 4. VÒNG LẶP HỆ THỐNG
-RunService.Heartbeat:Connect(function()
-    if Titan.FastE then
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then v.HoldDuration = 0 end
+local function HopServer()
+    print("🚀 Không thấy hàng ngon, đang nhảy Server...")
+    task.wait(2)
+    local success, result = pcall(function()
+        return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100")
+    end)
+
+    if success then
+        local data = HttpService:JSONDecode(result).data
+        for _, s in pairs(data) do
+            if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LPlr)
+                return
+            end
         end
+    else
+        warn("❌ Không lấy được list Server!")
     end
+end
+
+-- VÒNG LẶP SÁT THỦ (CHẠY NGẦM)
+task.spawn(function()
+    print("🔍 Silent Bot đang rà soát...")
+    task.wait(5) -- Đợi đồ trong map load ra
+
+    local found = false
+    -- Lọc toàn bộ đồ dưới đất
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            for _, name in pairs(PETS_TO_FIND) do
+                if obj.Name:lower():find(name:lower()) then
+                    print("🎯 CHỐT HẠ: " .. obj.Name)
+                    NotifyDiscord(obj.Name)
+                    found = true
+                    task.wait(3) -- Đợi gửi xong tin nhắn
+                    break
+                end
+            end
+        end
+        if found then break end
+    end
+    
+    -- Xong việc thì nhảy Server
+    HopServer()
 end)
 
--- Phím K để ẩn/hiện
-UIS.InputBegan:Connect(function(i, g)
-    if not g and i.KeyCode == Enum.KeyCode.K then Main.Visible = not Main.Visible end
-end)
-
-print("✅ TITAN ELITE FINDER V33 LOADED! Press K to Toggle.")
+print("💀 Silent Bot khởi động. F9 để xem log.")
