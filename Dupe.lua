@@ -3,32 +3,42 @@ task.wait(0.3)
 
 local WEBHOOK_URL = "WEBHOOK_CUA_BAN"
 
--- 🔥 PET LIST + GIÁ TRỊ (có thể chỉnh)
-local PET_DATA = {
-    ["garama and madundung"] = {money="$50M/s", rank="Gold"},
-    ["tang tang kelentang"] = {money="$175.88M/s", rank="Gold"},
-    ["chicleteirina bicicleteirina"] = {money="$68M/s", rank="Divine"},
-    ["la grande combinasion"] = {money="$85M/s", rank="Rainbow"},
-    ["trralaledon"] = {money="$60M/s", rank="Normal"},
-    ["strawberry elephant"] = {money="$39M/s", rank="Normal"},
-    ["meowl"] = {money="$??/s", rank="???"},
+-- 🔥 LIST PET (GIỮ NGUYÊN TÊN THẬT)
+local TARGET_PETS = {
+    "elefanto frigo","dug dug dug","las sis","nuclearo dinossauro",
+    "money money puggy","chillin chili","tang tang kelentang",
+    "garama and madundung","la secret combinasion","dragon cannelloni",
+    "los hotspotsitos","tralaledon","celularcini viciosini",
+    "tictac sahur","la supreme combinasion","ketupat kepat",
+    "ketchuru and musturu","burguro and fryuro","cooki and milki",
+    "capitano moby","cerberus","skibidi toilet",
+    "strawberry elephant","meowl"
 }
-
-local TARGET_PETS = {}
-for name,_ in pairs(PET_DATA) do
-    table.insert(TARGET_PETS, name)
-end
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local LPlr = Players.LocalPlayer
 
+-- 🧠 lưu pet tìm được
 local FOUND = {}
+local SENT = false
 
 -- ===== ADD PET =====
-local function AddPet(pet)
+local function AddPet(pet, money)
     if not FOUND[pet] then
-        FOUND[pet] = true
-        print("🎯 FOUND:", pet)
+        FOUND[pet] = money or "?"
+        print("🎯 FOUND:", pet, money or "")
+    end
+end
+
+-- ===== MATCH CHUẨN =====
+local function IsMatch(text)
+    text = text:lower()
+    for _, pet in pairs(TARGET_PETS) do
+        if text == pet then
+            return pet
+        end
     end
 end
 
@@ -36,34 +46,32 @@ end
 local function Check(obj)
     local name = (obj.Name or ""):lower()
 
-    for _, pet in pairs(TARGET_PETS) do
-        if name == pet then
-            AddPet(pet)
-        end
+    local pet = IsMatch(name)
+    if pet then
+        AddPet(pet)
     end
 
+    -- đọc GUI (có tiền + mutation)
     if obj:IsA("TextLabel") or obj:IsA("TextButton") then
         local txt = (obj.Text or ""):lower()
-        for _, pet in pairs(TARGET_PETS) do
-            if txt == pet then
-                AddPet(pet)
+
+        for _, petName in pairs(TARGET_PETS) do
+            if string.find(txt, petName) then
+                local money = txt:match("%$[%d%.]+%s*[mbk]?/s")
+                AddPet(petName, money)
             end
         end
     end
 end
 
--- ===== FORMAT ĐẸP =====
+-- ===== BUILD LIST =====
 local function BuildList()
     local text = ""
 
-    for pet,_ in pairs(FOUND) do
-        local data = PET_DATA[pet] or {money="?", rank="?"}
-
-        text = text ..
-        string.format("[%s] %s | %s\n",
-            data.rank,
+    for pet, money in pairs(FOUND) do
+        text = text .. string.format("%s | %s\n",
             pet:gsub("^%l", string.upper),
-            data.money
+            money or "?"
         )
     end
 
@@ -72,7 +80,9 @@ end
 
 -- ===== WEBHOOK =====
 local function SendWebhook()
+    if SENT then return end
     if next(FOUND) == nil then return end
+    SENT = true
 
     local sendFunc = request or http_request or (http and http.request)
     if not sendFunc then return end
@@ -86,12 +96,12 @@ local function SendWebhook()
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
-                content = "",
+                content = "||@everyone||",
                 embeds = {{
-                    title = "🧠 Brainrot Notify",
+                    title = "🧠 Brainrot Scanner",
                     description =
-                        "**🎯 Found Pets:**\n```"..list.."```\n"..
-                        "[JOIN SERVER]("..link..")",
+                        "```"..list.."```\n"..
+                        "[JOIN NGAY]("..link..")",
                     color = 0x00FF99
                 }}
             })
@@ -103,19 +113,31 @@ end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ MULTI SCAN START")
+    print("⚡ TITAN V45 START")
 
+    -- quét toàn map
     for _, obj in pairs(workspace:GetDescendants()) do
         Check(obj)
     end
 
+    -- nghe realtime
+    workspace.DescendantAdded:Connect(function(obj)
+        if not SENT then
+            Check(obj)
+        end
+    end)
+
+    -- gửi 1 lần
+    task.wait(1)
     SendWebhook()
 
+    -- nếu có pet → giữ server
     if next(FOUND) ~= nil then
-        print("⏳ Giữ server 45s...")
+        print("⏳ Giữ server 45s cho acc chính...")
         task.wait(45)
     end
 
-    print("🚀 Hop")
+    -- hop tiếp tục farm
+    print("🚀 Hop server")
     TeleportService:Teleport(game.PlaceId)
 end)
