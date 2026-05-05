@@ -1,9 +1,17 @@
+--[[ 
+⚡ TITAN V46 FINAL
+- Scan toàn game (tránh miss)
+- Gom nhiều pet
+- Không detect sai (ưu tiên match chuẩn)
+- Webhook có debug rõ
+- Giữ server 45s cho acc chính
+]]
+
 if not game:IsLoaded() then game.Loaded:Wait() end
-task.wait(0.3)
+task.wait(0.5)
 
 local WEBHOOK_URL = "WEBHOOK_CUA_BAN"
 
--- 🔥 LIST PET (GIỮ NGUYÊN TÊN THẬT)
 local TARGET_PETS = {
     "elefanto frigo","dug dug dug","las sis","nuclearo dinossauro",
     "money money puggy","chillin chili","tang tang kelentang",
@@ -18,9 +26,7 @@ local TARGET_PETS = {
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
-local LPlr = Players.LocalPlayer
 
--- 🧠 lưu pet tìm được
 local FOUND = {}
 local SENT = false
 
@@ -32,26 +38,29 @@ local function AddPet(pet, money)
     end
 end
 
--- ===== MATCH CHUẨN =====
-local function IsMatch(text)
+-- ===== MATCH CHUẨN (TRÁNH FAKE) =====
+local function FindMatch(text)
     text = text:lower()
+
     for _, pet in pairs(TARGET_PETS) do
         if text == pet then
             return pet
         end
     end
+
+    return nil
 end
 
--- ===== CHECK =====
+-- ===== CHECK OBJECT =====
 local function Check(obj)
+    -- check name
     local name = (obj.Name or ""):lower()
-
-    local pet = IsMatch(name)
+    local pet = FindMatch(name)
     if pet then
         AddPet(pet)
     end
 
-    -- đọc GUI (có tiền + mutation)
+    -- check GUI text (có money)
     if obj:IsA("TextLabel") or obj:IsA("TextButton") then
         local txt = (obj.Text or ""):lower()
 
@@ -67,77 +76,79 @@ end
 -- ===== BUILD LIST =====
 local function BuildList()
     local text = ""
-
     for pet, money in pairs(FOUND) do
-        text = text .. string.format("%s | %s\n",
-            pet:gsub("^%l", string.upper),
-            money or "?"
-        )
+        text = text .. pet .. " | " .. money .. "\n"
     end
-
     return text
 end
 
 -- ===== WEBHOOK =====
 local function SendWebhook()
     if SENT then return end
-    if next(FOUND) == nil then return end
-    SENT = true
+
+    if next(FOUND) == nil then
+        print("❌ Không có pet → không gửi")
+        return
+    end
 
     local sendFunc = request or http_request or (http and http.request)
-    if not sendFunc then return end
+
+    if not sendFunc then
+        warn("❌ Executor không hỗ trợ HTTP")
+        return
+    end
 
     local list = BuildList()
     local link = "https://www.roblox.com/games/"..game.PlaceId.."?gameInstanceId="..game.JobId
 
-    pcall(function()
+    local payload = {
+        content = "||@everyone||",
+        embeds = {{
+            title = "🧠 SCAN RESULT",
+            description = "```"..list.."```\n[JOIN NGAY]("..link..")",
+            color = math.random(100000,999999)
+        }}
+    }
+
+    local success, err = pcall(function()
         sendFunc({
             Url = WEBHOOK_URL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({
-                content = "||@everyone||",
-                embeds = {{
-                    title = "🧠 Brainrot Scanner",
-                    description =
-                        "```"..list.."```\n"..
-                        "[JOIN NGAY]("..link..")",
-                    color = 0x00FF99
-                }}
-            })
+            Body = HttpService:JSONEncode(payload)
         })
     end)
 
-    print("📡 SENT LIST")
+    if success then
+        print("✅ WEBHOOK SENT")
+        SENT = true
+    else
+        warn("❌ WEBHOOK ERROR:", err)
+    end
 end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ TITAN V45 START")
+    print("⚡ TITAN V46 START")
 
-    -- quét toàn map
-    for _, obj in pairs(workspace:GetDescendants()) do
+    -- scan toàn game (fix miss pet)
+    for _, obj in pairs(game:GetDescendants()) do
         Check(obj)
     end
 
-    -- nghe realtime
-    workspace.DescendantAdded:Connect(function(obj)
-        if not SENT then
-            Check(obj)
-        end
-    end)
+    print("📊 FOUND:", HttpService:JSONEncode(FOUND))
 
-    -- gửi 1 lần
-    task.wait(1)
+    -- gửi webhook
     SendWebhook()
 
-    -- nếu có pet → giữ server
+    -- giữ server
     if next(FOUND) ~= nil then
-        print("⏳ Giữ server 45s cho acc chính...")
+        print("⏳ Giữ server 45s...")
         task.wait(45)
+    else
+        task.wait(3)
     end
 
-    -- hop tiếp tục farm
-    print("🚀 Hop server")
+    print("🚀 HOP SERVER")
     TeleportService:Teleport(game.PlaceId)
 end)
