@@ -1,8 +1,9 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(1)
 
--- ===== CẤU HÌNH =====
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6" 
+-- ===== CẤU HÌNH (ĐÃ GẮN WEBHOOK) =====
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
+
 local TARGET_PETS = {
     "elefanto frigo", "dug dug dug", "las sis", "nuclearo dinossauro",
     "money money puggy", "chillin chili", "tang tang kelentang",
@@ -43,7 +44,7 @@ local function SendWebhook()
     if SENT or FOUND_COUNT == 0 then return end
 
     local req = (syn and syn.request) or request or http_request or (http and http.request)
-    if not req then return print("Executor không hỗ trợ gửi Webhook!") end
+    if not req then return print("❌ Executor không hỗ trợ gửi Webhook!") end
 
     local petList = ""
     for pet in pairs(FOUND) do
@@ -59,39 +60,51 @@ local function SendWebhook()
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "🎯 ĐÃ TÌM THẤY PET HIẾM! ("..FOUND_COUNT..")",
-                    description = "```\n" .. petList .. "```\n**JobId:** `" .. game.JobId .. "`\n\n[NHẤN VÀO ĐÂY ĐỂ VÀO SERVER]("..link..")",
-                    color = 65280, -- Màu xanh lá
-                    footer = {text = "Pet Hunter Bot | " .. os.date("%X")}
+                    title = "🎯 PHÁT HIỆN PET MỤC TIÊU! ("..FOUND_COUNT..")",
+                    description = "```\n" .. petList .. "```\n**JobId:** `" .. game.JobId .. "`\n\n[NHẤN ĐỂ VÀO SERVER]("..link..")",
+                    color = 65280,
+                    footer = {text = "Pet Hunter Pro | " .. os.date("%X")}
                 }}
             })
         })
     end)
 
-    if success then SENT = true print("📡 Đã gửi thông báo lên Discord!") else warn("Lỗi gửi Webhook: " .. err) end
+    if success then SENT = true print("📡 Đã gửi Discord thành công!") else warn("Lỗi Webhook: " .. err) end
 end
 
--- ===== CHUYỂN SERVER (SERVER HOP) =====
+-- ===== SERVER HOP (CHỐNG KẸT / ANTI-FULL) =====
 local function HopServer()
-    print("🚀 Đang tìm server mới...")
-    local sfUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    print("🚀 Đang tìm server mới (ưu tiên server vắng)...")
     
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(sfUrl))
-    end)
+    local function GetNextServer()
+        local sfUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(sfUrl))
+        end)
 
-    if success and result and result.data then
-        for _, server in ipairs(result.data) do
-            if server.id ~= game.JobId and server.playing < server.maxPlayers then
-                print("✅ Đã tìm thấy server mới, đang nhảy...")
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
-                return
+        if success and result and result.data then
+            for _, server in ipairs(result.data) do
+                -- Lọc server còn trống ít nhất 2 chỗ để không bị hụt
+                if server.id ~= game.JobId and server.playing <= (server.maxPlayers - 2) then
+                    return server.id
+                end
             end
         end
+        return nil
     end
-    
-    -- Nếu không tìm được server qua API thì dùng cách cũ làm dự phòng
-    TeleportService:Teleport(game.PlaceId)
+
+    while true do
+        local targetId = GetNextServer()
+        if targetId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetId)
+        else
+            TeleportService:Teleport(game.PlaceId)
+        end
+        
+        -- Nếu bị kẹt ở màn hình Full quá 15 giây, nó sẽ tự lặp lại để tìm server khác
+        task.wait(15)
+        print("🔄 Vẫn kẹt ở server cũ, đang thử nhảy lại...")
+    end
 end
 
 -- ===== QUÉT MÔ HÌNH =====
@@ -100,32 +113,30 @@ local function CheckModel(obj)
     local pet = MatchPet(obj.Name)
     if pet and not FOUND[pet] then
         FOUND[pet] = true
-        FOUND_COUNT = FOUND_COUNT + 1
+        FOUND_COUNT += 1
         print("🎯 TÌM THẤY:", pet)
     end
 end
 
 -- ===== CHẠY CHÍNH =====
 task.spawn(function()
-    print("⚡ Bắt đầu quét server...")
+    print("⚡ Đang quét server...")
 
-    -- Quét nhanh lúc vừa vào
     for _, obj in ipairs(workspace:GetDescendants()) do
         CheckModel(obj)
     end
 
-    -- Theo dõi nếu có pet mới spawn ra
     workspace.DescendantAdded:Connect(CheckModel)
 
-    task.wait(3) -- Chờ một chút để dữ liệu load hết
+    task.wait(3)
 
     if FOUND_COUNT > 0 then
         SendWebhook()
-        print("⏳ Đang đợi 45 giây cho acc chính vào...")
+        print("⏳ Đợi 45 giây cho acc chính...")
         task.wait(45)
     else
-        print("❌ Server này không có pet mục tiêu.")
-        task.wait(2)
+        print("❌ Không có pet mục tiêu.")
+        task.wait(1)
     end
 
     HopServer()
