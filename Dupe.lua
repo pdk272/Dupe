@@ -29,15 +29,25 @@ local function Normalize(str)
     return (str or ""):lower():gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
 end
 
--- ===== MATCH =====
+-- ===== MATCH CHUẨN (ANTI NHẶT RÁC) =====
 local function MatchPet(text)
     text = Normalize(text)
 
     for _, pet in ipairs(TARGET_PETS) do
-        if string.find(text, pet, 1, true) then
+        if text == pet then
+            return pet
+        end
+
+        -- chỉ match nếu text ngắn gần tên pet
+        if #text <= (#pet + 10) and string.find(text, pet, 1, true) then
             return pet
         end
     end
+end
+
+-- ===== CHỈ SCAN TRONG MAP =====
+local function IsValid(obj)
+    return obj:IsDescendantOf(workspace)
 end
 
 -- ===== ADD =====
@@ -51,6 +61,8 @@ end
 
 -- ===== CHECK =====
 local function Check(obj)
+    if not IsValid(obj) then return end
+
     local pet = MatchPet(obj.Name)
     if pet then
         AddPet(pet)
@@ -67,7 +79,21 @@ local function Check(obj)
     end
 end
 
--- ===== BUILD =====
+-- ===== FAST SCAN (ĐA LUỒNG NHẸ) =====
+local function FastScan()
+    local list = game:GetDescendants()
+    local chunk = math.ceil(#list / 5)
+
+    for i = 1, 5 do
+        task.spawn(function()
+            for j = (i-1)*chunk+1, math.min(i*chunk, #list) do
+                Check(list[j])
+            end
+        end)
+    end
+end
+
+-- ===== BUILD TEXT =====
 local function BuildList()
     local text = ""
     for pet, money in pairs(FOUND) do
@@ -79,23 +105,22 @@ end
 -- ===== WEBHOOK =====
 local function SendWebhook()
     if SENT then return end
-    if FOUND_COUNT == 0 then return end -- ❗ chỉ gửi khi có pet
+    if FOUND_COUNT == 0 then return end
 
-    local sendFunc =
+    local req =
         (syn and syn.request) or
         request or http_request or
         (http and http.request)
 
-    if not sendFunc then
-        warn("❌ No HTTP support")
+    if not req then
+        warn("❌ No HTTP")
         return
     end
 
-    local list = BuildList()
     local link = "https://www.roblox.com/games/"..game.PlaceId.."?gameInstanceId="..game.JobId
 
-    local success, err = pcall(function()
-        sendFunc({
+    local success = pcall(function()
+        req({
             Url = WEBHOOK_URL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
@@ -103,7 +128,7 @@ local function SendWebhook()
                 content = "",
                 embeds = {{
                     title = "🎯 FOUND PET ("..FOUND_COUNT..")",
-                    description = "```"..list.."```\n[JOIN SERVER]("..link..")",
+                    description = "```"..BuildList().."```\n[JOIN SERVER]("..link..")",
                     color = 65280
                 }}
             })
@@ -112,41 +137,53 @@ local function SendWebhook()
 
     if success then
         SENT = true
-        print("📡 SENT:", FOUND_COUNT)
+        print("📡 SENT WEBHOOK")
+    end
+end
+
+-- ===== HOP SERVER API =====
+local function HopServer()
+    print("🔎 FIND NEW SERVER...")
+
+    local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"
+
+    local success, res = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if success then
+        local data = HttpService:JSONDecode(res)
+
+        for _, v in ipairs(data.data) do
+            if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                print("🚀 HOP TO:", v.id)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
+                break
+            end
+        end
     else
-        warn("❌ WEBHOOK ERROR:", err)
+        warn("❌ API FAIL")
+        TeleportService:Teleport(game.PlaceId)
     end
 end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ SCANNING...")
+    print("⚡ START SCAN")
 
-    -- scan lần đầu
-    for _, obj in ipairs(game:GetDescendants()) do
-        Check(obj)
-    end
-
-    -- scan object spawn mới
+    FastScan()
     game.DescendantAdded:Connect(Check)
 
-    -- đợi thêm để bắt pet spawn
-    local SCAN_TIME = 10
-    for i = 1, SCAN_TIME do
-        task.wait(1)
-    end
+    task.wait(8) -- thời gian quét
 
-    -- gửi nếu có pet
-    SendWebhook()
-
-    -- ===== HOP =====
     if FOUND_COUNT > 0 then
-        print("⏳ HOLD SERVER 60s...")
+        SendWebhook()
+        print("⏳ HOLD 60s")
         task.wait(60)
     else
-        task.wait(3)
+        print("❌ NO PET → HOP")
+        task.wait(2)
     end
 
-    print("🚀 HOP SERVER")
-    TeleportService:Teleport(game.PlaceId)
+    HopServer()
 end)
