@@ -19,7 +19,14 @@ local TARGET_PETS = {
     "tictac sahur", "la supreme combinasion", "ketupat kepat",
     "ketchuru and musturu", "burguro and fryuro", "cooki and milki",
     "capitano moby", "cerberus", "skibidi toilet",
-    "strawberry elephant", "lavadorito spinito"
+    "strawberry elephant", "lavadorito spinito","Guest 666",
+    "La Ginger Sekolah","Dragon Gingerini","Jolly Jolly Sahur",
+    "Ketupat Bros","Ketupat Bros","Cloverat Clapat","Cash or Card",
+    "Pretzo Robo","John Doe","Money Money Bros","Mariachi Corazoni",
+    "Hydra Bunny","Celestial Pegasus","Los Amigos","Fragola La La La",
+    "Mieteteira Bicicleteira","Los Puggies","Los Spaghettis","La Spooky Grande",
+    "Antonio","La Casa Boo","Reinito Sleighito","Popcuru and Fizzuru","Quackini Snackini",
+    "Los Mariachis","Gym Bros","Fortunu and Cashuru"
 }
 
 local HttpService = game:GetService("HttpService")
