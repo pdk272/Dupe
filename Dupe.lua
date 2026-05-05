@@ -1,82 +1,93 @@
 --[[
-    ⚡ VANGUARD TITAN: INSTANT E (LITE VERSION)
-    - Tác dụng: Ép tất cả các phím tương tác (ProximityPrompt) về 0 giây.
-    - Tối ưu: Cực kỳ nhẹ, tự động áp dụng cho đồ cũ và đồ mới rớt ra.
-    - Giao diện: 1 nút bấm nhỏ gọn, có thể kéo thả (Draggable).
+    📡 TITAN BOT: SERVER SCANNER & HOPPER
+    - Chạy trên Acc Phụ. 
+    - Nhảy Server -> Quét Workspace -> Báo Webhook -> Nhảy tiếp.
 ]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- ================= CẤU HÌNH CỦA ÔNG =================
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
+
+local PETS_TO_FIND = {
+    "garama",    -- Ghi tên pet viết thường
+    "hugedog",
+    "chihuanini taconini"
+}
+-- ====================================================
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local LPlr = game:GetService("Players").LocalPlayer
-local PlayerGui = LPlr:WaitForChild("PlayerGui")
+local PlaceId = game.PlaceId
+local JobId = game.JobId
 
--- Trạng thái mặc định là Bật
-local Enabled = true 
-
--- Xóa UI cũ nếu ông chạy lại script nhiều lần
-if PlayerGui:FindFirstChild("TitanFastELite") then
-    PlayerGui.TitanFastELite:Destroy()
-end
-
--- 1. TẠO GUI SIÊU NHẸ
-local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "TitanFastELite"
-ScreenGui.ResetOnSpawn = false
-
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 130, 0, 35)
-ToggleBtn.Position = UDim2.new(0.5, -65, 0, 20) -- Nằm gọn gàng giữa màn hình phía trên
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-ToggleBtn.Text = "⚡ FAST E: ON"
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 13
-ToggleBtn.Draggable = true -- Cho phép nắm kéo đi chỗ khác
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
-
--- 2. HÀM ÉP 0 GIÂY
-local function ApplyFastE(obj)
-    if obj:IsA("ProximityPrompt") then
-        obj.HoldDuration = 0
+local function SendWebhook(petName)
+    local data = {
+        ["content"] = "||@everyone||", -- Ping mọi người (xóa dòng này nếu không thích ồn ào)
+        ["embeds"] = {{
+            ["title"] = "🚨 PHÁT HIỆN PET VIP!",
+            ["description"] = "**Pet tìm thấy:** `" .. petName .. "`\n**Mã Server (JobId):**\n```" .. JobId .. "
+```\n*Hãy copy mã JobId này và dùng lệnh Teleport để join!*",
+            ["color"] = tonumber("0x00FFFF")
+        }}
+    }
+    
+    local req = (syn and syn.request) or request or http_request or (fluxus and fluxus.request)
+    if req then
+        pcall(function()
+            req({
+                Url = WEBHOOK_URL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    else
+        print("Executor của ông không hỗ trợ gửi Webhook!")
     end
 end
 
--- Tự động ép 0 giây cho bất kỳ đồ nào mới spawn ra
-workspace.DescendantAdded:Connect(function(descendant)
-    if Enabled then
-        ApplyFastE(descendant)
+local function ServerHop()
+    print("Đang tìm Server mới để nhảy...")
+    task.wait(2)
+    local success, servers = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Desc&limit=100")).data
+    end)
+    
+    if success and servers then
+        for _, s in pairs(servers) do
+            if s.playing < s.maxPlayers and s.id ~= JobId then
+                TeleportService:TeleportToPlaceInstance(PlaceId, s.id, LPlr)
+                task.wait(5)
+            end
+        end
     end
-end)
+end
 
--- Vòng lặp dọn dẹp quét lại map mỗi 0.5 giây (Tiết kiệm CPU, không gây lag)
 task.spawn(function()
-    while task.wait(0.5) do
-        if Enabled then
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") and v.HoldDuration ~= 0 then
-                    ApplyFastE(v)
+    print("Bắt đầu quét Server...")
+    task.wait(3) 
+    
+    local found = false
+    for _, item in pairs(workspace:GetDescendants()) do
+        if item:IsA("Model") or item:IsA("BasePart") then
+            for _, vipPet in pairs(PETS_TO_FIND) do
+                if item.Name:lower():find(vipPet) then
+                    print("🎯 TÌM THẤY: " .. item.Name)
+                    SendWebhook(item.Name)
+                    found = true
+                    task.wait(3) -- Đợi gửi xong Webhook
+                    break
                 end
             end
         end
+        if found then break end 
     end
-end)
 
--- 3. XỬ LÝ SỰ KIỆN NÚT BẤM
-ToggleBtn.MouseButton1Click:Connect(function()
-    Enabled = not Enabled
-    if Enabled then
-        ToggleBtn.Text = "⚡ FAST E: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-    else
-        ToggleBtn.Text = "⚡ FAST E: OFF"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        -- Tùy chọn: Khi tắt, trả lại 1 giây cho đồ trong map
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then
-                v.HoldDuration = 1
-            end
-        end
+    if not found then
+        print("Server này không có pet, đang nhảy...")
     end
+    
+    ServerHop()
 end)
-
-print("⚡ TITAN FAST E LITE LOADED!")
