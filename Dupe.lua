@@ -1,104 +1,99 @@
 --[[
-    💀 TITAN BOT: SILENT ASSASSIN (NO-GUI VERSION)
-    - Fix triệt để lỗi CoreGui nil value (Không dùng bất kỳ GUI nào).
-    - Nhiệm vụ: Tự động nhảy Server -> Tìm Pet -> Báo Discord -> Lặp lại.
-    - Status: Chạy ngầm 100%, im lặng tuyệt đối.
+    💀 TITAN BOT V34.0 - TRỊ DỨT ĐIỂM LỖI CORE GUI
+    - Tuyệt đối không tạo GUI (Tránh hoàn toàn lỗi CoreGui: nil).
+    - Tự động nhận diện Executor để gửi Webhook.
+    - Added Pets: Chicleteirina, Bicicleterina.
+    - Logic: Quét -> Báo Discord -> Nhảy Server.
 ]]
 
+-- Chờ game load xong
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- ================= CẤU HÌNH WEBHOOK =================
+-- ================= CẤU HÌNH (THAY LINK CỦA ÔNG) =================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 
-local PETS_TO_FIND = {
+local TARGET_PETS = {
     "garama",
-    "hugedog",
     "chicleteirina",
-    "bicicleterina"
+    "bicicleterina",
+    "hugedog"
 }
--- ===================================================
+-- ===============================================================
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local LPlr = game:GetService("Players").LocalPlayer
 
--- BỘ GỬI TÍN HIỆU ĐA NĂNG
-local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+-- Kiểm tra hàm request của từng loại Executor (Fix lỗi nil khi gọi Webhook)
+local request_func = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
-local function NotifyDiscord(petName)
-    if not httpRequest then 
-        warn("Executor không hỗ trợ Webhook!")
+local function SendToDiscord(petName)
+    if not request_func then 
+        print("Executor này không hỗ trợ gửi Webhook!")
         return 
     end
 
-    local success, err = pcall(function()
-        httpRequest({
+    pcall(function()
+        request_func({
             Url = WEBHOOK_URL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
-                ["content"] = "||@everyone||",
+                ["content"] = "@everyone",
                 ["embeds"] = {{
-                    ["title"] = "🎯 TÌM THẤY MỤC TIÊU HIẾM!",
-                    ["description"] = "**Tên Pet:** `" .. petName .. "`\n**Mã Server (JobId):**\n```" .. game.JobId .. "
+                    ["title"] = "🚨 ĐÃ TÌM THẤY HÀNG NGON!",
+                    ["description"] = "**Tên Pet:** `" .. petName .. "`\n**JobId (Mã Server):**\n```" .. game.JobId .. "
 ```",
-                    ["color"] = tonumber("0x1abc9c")
+                    ["color"] = 16711680 -- Màu đỏ
                 }}
             })
         })
     end)
-    
-    if success then
-        print("✅ Đã bắn tín hiệu về Discord!")
-    else
-        warn("❌ Lỗi gửi Discord: " .. tostring(err))
-    end
 end
 
-local function HopServer()
-    print("🚀 Không thấy hàng ngon, đang nhảy Server...")
-    task.wait(2)
-    local success, result = pcall(function()
+local function JumpServer()
+    print("Đang nhảy sang server khác...")
+    task.wait(1)
+    local success, response = pcall(function()
         return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100")
     end)
 
     if success then
-        local data = HttpService:JSONDecode(result).data
-        for _, s in pairs(data) do
+        local servers = HttpService:JSONDecode(response).data
+        for _, s in pairs(servers) do
             if s.playing < s.maxPlayers and s.id ~= game.JobId then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LPlr)
                 return
             end
         end
-    else
-        warn("❌ Không lấy được list Server!")
     end
 end
 
--- VÒNG LẶP SÁT THỦ (CHẠY NGẦM)
+-- VÒNG LẶP QUÉT NGẦM
 task.spawn(function()
-    print("🔍 Silent Bot đang rà soát...")
-    task.wait(5) -- Đợi đồ trong map load ra
+    print("Bot đang quét ngầm, F9 để xem log...")
+    task.wait(6) -- Đợi 6 giây cho map rớt đồ ra hết
 
-    local found = false
-    -- Lọc toàn bộ đồ dưới đất
+    local isFound = false
+    -- Quét toàn bộ vật thể trong Workspace (Kể cả folder Shops hay Pet)
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            for _, name in pairs(PETS_TO_FIND) do
-                if obj.Name:lower():find(name:lower()) then
-                    print("🎯 CHỐT HẠ: " .. obj.Name)
-                    NotifyDiscord(obj.Name)
-                    found = true
-                    task.wait(3) -- Đợi gửi xong tin nhắn
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            local objName = obj.Name:lower()
+            for _, target in pairs(TARGET_PETS) do
+                if objName:find(target:lower()) then
+                    print("🎯 PHÁT HIỆN: " .. obj.Name)
+                    SendToDiscord(obj.Name)
+                    isFound = true
+                    task.wait(2) -- Đợi gửi Webhook thành công
                     break
                 end
             end
         end
-        if found then break end
+        if isFound then break end
     end
-    
-    -- Xong việc thì nhảy Server
-    HopServer()
+
+    -- Nhảy server dù có thấy hay không để tìm tiếp
+    JumpServer()
 end)
 
-print("💀 Silent Bot khởi động. F9 để xem log.")
+print("V34.0: TRUE SILENT BOT IS RUNNING...")
