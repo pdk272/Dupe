@@ -1,106 +1,102 @@
 --[[
-    SOLARA X - FUSE ACCELERATOR (V28.0)
-    - Logic: Remote Interceptor & UI Bypass.
-    - Feature: Skip Fuse Time / Instant Fuse.
-    - Theme: Solara Dark (Purple-Cyan Gradient).
-    - Keybind: K (Toggle).
+    SOLARA X - FUSE GOD MODE (V29.0)
+    - Target: ReplicatedStorage.Prompts (Dựa trên ảnh của anh)
+    - Features: Instant Skip & Auto Claim
+    - Theme: Solara Dark Purple
+    - Keybind: K (Toggle)
 ]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 local Players = game:GetService("Players")
 local LPlr = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local Titan = {
     Visible = true,
-    InstantFuse = true
+    AutoSkip = false
 }
 
--- 1. GUI SOLARA STYLE (TRUNG TÂM ĐIỀU KHIỂN)
+-- 1. TRUY XUẤT NGUỒN TIN (Dựa trên ảnh anh gửi)
+local Prompts = RS:WaitForChild("Prompts")
+local SkipRemote = Prompts:WaitForChild("SkipFusePrompt")
+local ClaimRemote = Prompts:WaitForChild("ClaimFusePrompt")
+
+-- 2. GIAO DIỆN SOLARA (CHUẨN ẢNH ÔNG GỬI)
 local ScreenGui = Instance.new("ScreenGui", LPlr:WaitForChild("PlayerGui"))
-ScreenGui.Name = "TitanFuseSkip"
+ScreenGui.Name = "TitanFuseGod"
 ScreenGui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 300, 0, 200)
-Main.Position = UDim2.new(0.5, -150, 0.4, -100)
-Main.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+Main.Size = UDim2.new(0, 320, 0, 220)
+Main.Position = UDim2.new(0.5, -160, 0.4, -110)
+Main.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 Main.BorderSizePixel = 0
 Main.Active = true
-Main.Draggable = true -- Tự viết kéo thả nếu bản này lỗi nhé
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 5)
+Main.Draggable = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
 local TopBar = Instance.new("Frame", Main)
 TopBar.Size = UDim2.new(1, 0, 0, 35)
-Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 5)
+Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 8)
 local Grad = Instance.new("UIGradient", TopBar)
 Grad.Color = ColorSequence.new(Color3.fromRGB(150, 0, 255), Color3.fromRGB(0, 255, 255))
 
 local Title = Instance.new("TextLabel", TopBar)
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.Text = " SOLARA • FUSE SKIPPER"
+Title.Size = UDim2.new(1, -10, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Text = "SOLARA • FUSE GOD"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
--- 2. NÚT KÍCH HOẠT SIÊU TỐC
-local ToggleBtn = Instance.new("TextButton", Main)
-ToggleBtn.Size = UDim2.new(0.9, 0, 0, 50)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-ToggleBtn.Text = "INSTANT FUSE: ON"
-ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 18
-Instance.new("UICorner", ToggleBtn)
+-- 3. NÚT KÍCH NỔ (INSTANT FUSE)
+local FuseBtn = Instance.new("TextButton", Main)
+FuseBtn.Size = UDim2.new(0.9, 0, 0, 50)
+FuseBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
+FuseBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+FuseBtn.Text = "AUTO SKIP & CLAIM: OFF"
+FuseBtn.TextColor3 = Color3.new(1, 1, 1)
+FuseBtn.Font = Enum.Font.GothamBold
+FuseBtn.TextSize = 16
+Instance.new("UICorner", FuseBtn)
 
--- 3. CORE LOGIC - ĐÁNH BẠI THỜI GIAN
-local function SkipFuseLogic()
-    -- 3a. Xử lý UI (Nếu game dùng thanh trượt/đếm ngược trên màn hình)
-    for _, v in pairs(LPlr.PlayerGui:GetDescendants()) do
-        if v:IsA("TextLabel") and (v.Text:find(":") or v.Text:find("s")) then
-            -- Nếu thấy nhãn thời gian, ta ép nó về 0
-            if v.Parent:IsA("Frame") and v.Parent.Name:lower():find("fuse") then
-                v.Text = "0s"
-            end
-        end
+-- 4. LOGIC ÉP MÁY CHỦ (PACKET ATTACK)
+local function ExecuteFuseHacks()
+    -- Gửi lệnh Skip (Bỏ qua thời gian)
+    if SkipRemote:IsA("RemoteEvent") then
+        SkipRemote:FireServer()
+    elseif SkipRemote:IsA("RemoteFunction") then
+        SkipRemote:InvokeServer()
     end
 
-    -- 3b. Xử lý Remote (Nã lệnh hoàn tất ngay khi vừa bắt đầu)
-    -- Em quét các Remote tiềm năng liên quan đến Fuse
-    for _, remote in pairs(RS:GetDescendants()) do
-        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-            local rName = remote.Name:lower()
-            if rName:find("fuse") or rName:find("evolve") or rName:find("merge") then
-                -- Nếu nó là lệnh xác nhận kết thúc, ta nã nó liên tục
-                if rName:find("confirm") or rName:find("finish") or rName:find("end") then
-                    if remote:IsA("RemoteEvent") then
-                        remote:FireServer(true)
-                    else
-                        remote:InvokeServer(true)
-                    end
-                end
-            end
-        end
+    -- Gửi lệnh Claim (Nhận pet ngay lập tức)
+    task.wait(0.1) -- Delay cực nhỏ để tránh lỗi logic
+    if ClaimRemote:IsA("RemoteEvent") then
+        ClaimRemote:FireServer()
+    elseif ClaimRemote:IsA("RemoteFunction") then
+        ClaimRemote:InvokeServer()
     end
 end
 
--- Vòng lặp kiểm tra
-RunService.Heartbeat:Connect(function()
-    if Titan.InstantFuse then
-        SkipFuseLogic()
+-- Vòng lặp quét trạng thái
+task.spawn(function()
+    while task.wait(0.5) do
+        if Titan.AutoSkip then
+            pcall(ExecuteFuseHacks)
+        end
     end
 end)
 
--- Toggle trạng thái
-ToggleBtn.MouseButton1Click:Connect(function()
-    Titan.InstantFuse = not Titan.InstantFuse
-    ToggleBtn.Text = "INSTANT FUSE: " .. (Titan.InstantFuse and "ON" or "OFF")
-    ToggleBtn.TextColor3 = Titan.InstantFuse and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(200, 50, 50)
+-- Toggle Button
+FuseBtn.MouseButton1Click:Connect(function()
+    Titan.AutoSkip = not Titan.AutoSkip
+    FuseBtn.Text = "AUTO SKIP & CLAIM: " .. (Titan.AutoSkip and "ON" or "OFF")
+    FuseBtn.TextColor3 = Titan.AutoSkip and Color3.fromRGB(0, 255, 255) or Color3.new(1, 1, 1)
+    FuseBtn.BackgroundColor3 = Titan.AutoSkip and Color3.fromRGB(30, 30, 50) or Color3.fromRGB(20, 20, 30)
 end)
 
 -- Phím K đóng mở
@@ -110,4 +106,4 @@ UIS.InputBegan:Connect(function(i, g)
     end
 end)
 
-print("⚡ SOLARA FUSE SKIPPER LOADED! Press K to Toggle.")
+print("🌌 TITAN FUSE GOD V29.0 LOADED! Đã khóa mục tiêu vào SkipFusePrompt.")
