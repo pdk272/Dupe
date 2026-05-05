@@ -1,6 +1,7 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
-task.wait(0.5)
+task.wait(1)
 
+-- ===== CONFIG =====
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 
 local TARGET_PETS = {
@@ -14,37 +15,36 @@ local TARGET_PETS = {
     "strawberry elephant","meowl"
 }
 
+-- ===== SERVICES =====
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
+-- ===== STATE =====
 local FOUND = {}
+local FOUND_COUNT = 0
 local SENT = false
 
--- ===== CHUẨN HÓA TEXT =====
+-- ===== NORMALIZE =====
 local function Normalize(str)
     return (str or ""):lower():gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
 end
 
--- ===== MATCH CHUẨN =====
+-- ===== MATCH =====
 local function MatchPet(text)
     text = Normalize(text)
 
-    for _, pet in pairs(TARGET_PETS) do
-        if text == pet then
-            return pet
-        end
-
-        -- match nhẹ nhưng tránh ăn ké
-        if string.find(text, pet, 1, true) and #pet > 6 then
+    for _, pet in ipairs(TARGET_PETS) do
+        if string.find(text, pet, 1, true) then
             return pet
         end
     end
 end
 
--- ===== ADD PET =====
+-- ===== ADD =====
 local function AddPet(pet, money)
     if not FOUND[pet] then
         FOUND[pet] = money or "?"
+        FOUND_COUNT += 1
         print("🎯 FOUND:", pet, money or "")
     end
 end
@@ -61,41 +61,37 @@ local function Check(obj)
         local pet2 = MatchPet(txt)
 
         if pet2 then
-            local money = txt:match("%$[%d%.]+%s*[mbk]?/s")
+            local money = txt:match("%$[%d%.]+%s*[KMBkmb]?")
             AddPet(pet2, money)
         end
     end
 end
 
--- ===== BUILD LIST =====
+-- ===== BUILD =====
 local function BuildList()
     local text = ""
-    local count = 0
-
     for pet, money in pairs(FOUND) do
         text = text .. pet .. " | " .. money .. "\n"
-        count += 1
     end
-
-    return text, count
+    return text
 end
 
 -- ===== WEBHOOK =====
 local function SendWebhook()
     if SENT then return end
+    if FOUND_COUNT == 0 then return end -- ❗ chỉ gửi khi có pet
 
-    local list, count = BuildList()
-    if count == 0 then
-        print("❌ Không có pet → không gửi")
-        return
-    end
+    local sendFunc =
+        (syn and syn.request) or
+        request or http_request or
+        (http and http.request)
 
-    local sendFunc = request or http_request or (http and http.request)
     if not sendFunc then
-        warn("❌ Executor không hỗ trợ HTTP")
+        warn("❌ No HTTP support")
         return
     end
 
+    local list = BuildList()
     local link = "https://www.roblox.com/games/"..game.PlaceId.."?gameInstanceId="..game.JobId
 
     local success, err = pcall(function()
@@ -104,38 +100,49 @@ local function SendWebhook()
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
-                content = "||@everyone||",
+                content = "",
                 embeds = {{
-                    title = "🎯 PET TRONG SERVER ("..count..")",
-                    description = "```"..list.."```\n[JOIN NGAY]("..link..")",
-                    color = 0x00FF00
+                    title = "🎯 FOUND PET ("..FOUND_COUNT..")",
+                    description = "```"..list.."```\n[JOIN SERVER]("..link..")",
+                    color = 65280
                 }}
             })
         })
     end)
 
     if success then
-        print("📡 ĐÃ GỬI:", count, "pet")
         SENT = true
+        print("📡 SENT:", FOUND_COUNT)
     else
-        warn("❌ LỖI WEBHOOK:", err)
+        warn("❌ WEBHOOK ERROR:", err)
     end
 end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ SCAN START")
+    print("⚡ SCANNING...")
 
-    for _, obj in pairs(game:GetDescendants()) do
+    -- scan lần đầu
+    for _, obj in ipairs(game:GetDescendants()) do
         Check(obj)
     end
 
-    task.wait(1)
+    -- scan object spawn mới
+    game.DescendantAdded:Connect(Check)
+
+    -- đợi thêm để bắt pet spawn
+    local SCAN_TIME = 10
+    for i = 1, SCAN_TIME do
+        task.wait(1)
+    end
+
+    -- gửi nếu có pet
     SendWebhook()
 
-    if next(FOUND) ~= nil then
-        print("⏳ Giữ server 45s...")
-        task.wait(45)
+    -- ===== HOP =====
+    if FOUND_COUNT > 0 then
+        print("⏳ HOLD SERVER 60s...")
+        task.wait(60)
     else
         task.wait(3)
     end
