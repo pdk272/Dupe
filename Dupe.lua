@@ -1,8 +1,9 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(1)
 
--- ===== CẤU HÌNH (ĐÃ GẮN WEBHOOK) =====
+-- ===== CONFIG =====
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
+local FILENAME = "server_history.json" -- File lưu lịch sử server để không bị trùng
 
 local TARGET_PETS = {
     "elefanto frigo", "dug dug dug", "las sis", "nuclearo dinossauro",
@@ -15,78 +16,82 @@ local TARGET_PETS = {
     "strawberry elephant", "lavadorito spinito"
 }
 
--- ===== DỊCH VỤ =====
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
--- ===== TRẠNG THÁI =====
-local FOUND = {}
-local FOUND_COUNT = 0
-local SENT = false
-
--- ===== CHUẨN HÓA TÊN =====
-local function Normalize(str)
-    return (str or ""):lower():gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+-- ===== HÀM LƯU LỊCH SỬ SERVER =====
+local function saveServer(jobId)
+    local history = {}
+    if isfile(FILENAME) then
+        history = HttpService:JSONDecode(readfile(FILENAME))
+    end
+    history[jobId] = os.time()
+    
+    -- Dọn dẹp lịch sử cũ (xóa server đã lưu quá 1 tiếng để tránh file quá nặng)
+    for id, timestamp in pairs(history) do
+        if os.time() - timestamp > 3600 then history[id] = nil end
+    end
+    
+    writefile(FILENAME, HttpService:JSONEncode(history))
 end
 
--- ===== KIỂM TRA PET =====
+local function isServerVisited(jobId)
+    if not isfile(FILENAME) then return false end
+    local history = HttpService:JSONDecode(readfile(FILENAME))
+    return history[jobId] ~= nil
+end
+
+-- ===== CHUẨN HÓA & CHECK PET =====
+local function Normalize(str) return (str or ""):lower():gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1") end
+
 local function MatchPet(name)
     name = Normalize(name)
     for _, pet in ipairs(TARGET_PETS) do
-        if string.find(name, pet, 1, true) then
-            return pet
-        end
+        if string.find(name, pet, 1, true) then return pet end
     end
 end
 
--- ===== GỬI WEBHOOK =====
-local function SendWebhook()
-    if SENT or FOUND_COUNT == 0 then return end
-
+-- ===== WEBHOOK =====
+local function SendWebhook(foundList, count)
     local req = (syn and syn.request) or request or http_request or (http and http.request)
-    if not req then return print("❌ Executor không hỗ trợ gửi Webhook!") end
+    if not req then return end
 
-    local petList = ""
-    for pet in pairs(FOUND) do
-        petList = petList .. "• " .. pet .. "\n"
-    end
+    local petText = ""
+    for pet in pairs(foundList) do petText = petText .. "• " .. pet .. "\n" end
 
     local link = "https://www.roblox.com/games/"..game.PlaceId.."?gameInstanceId="..game.JobId
     
-    local success, err = pcall(function()
+    pcall(function()
         req({
             Url = WEBHOOK_URL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "🎯 PHÁT HIỆN PET MỤC TIÊU! ("..FOUND_COUNT..")",
-                    description = "```\n" .. petList .. "```\n**JobId:** `" .. game.JobId .. "`\n\n[NHẤN ĐỂ VÀO SERVER]("..link..")",
-                    color = 65280,
-                    footer = {text = "Pet Hunter Pro | " .. os.date("%X")}
+                    title = "🎯 ["..game:GetService("Players").LocalPlayer.Name.."] ĐÃ TÌM THẤY!",
+                    description = "```\n" .. petText .. "```\nJobId: `" .. game.JobId .. "`\n\n[JOIN]("..link..")",
+                    color = 0xFF0000, -- Màu đỏ cho nổi
+                    footer = {text = "Server Time: " .. os.date("%X")}
                 }}
             })
         })
     end)
-
-    if success then SENT = true print("📡 Đã gửi Discord thành công!") else warn("Lỗi Webhook: " .. err) end
 end
 
--- ===== SERVER HOP (CHỐNG KẸT / ANTI-FULL) =====
+-- ===== SERVER HOP THÔNG MINH =====
 local function HopServer()
-    print("🚀 Đang tìm server mới (ưu tiên server vắng)...")
+    saveServer(game.JobId) -- Lưu server hiện tại trước khi đi
     
-    local function GetNextServer()
-        local sfUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(sfUrl))
-        end)
-
-        if success and result and result.data then
-            for _, server in ipairs(result.data) do
-                -- Lọc server còn trống ít nhất 2 chỗ để không bị hụt
-                if server.id ~= game.JobId and server.playing <= (server.maxPlayers - 2) then
-                    return server.id
+    local function GetNext()
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local s, res = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+        if s and res and res.data then
+            for _, srv in ipairs(res.data) do
+                if srv.id ~= game.JobId and srv.playing <= (srv.maxPlayers - 2) then
+                    -- Kiểm tra xem server này acc nào đã vào chưa
+                    if not isServerVisited(srv.id) then
+                        return srv.id
+                    end
                 end
             end
         end
@@ -94,50 +99,34 @@ local function HopServer()
     end
 
     while true do
-        local targetId = GetNextServer()
-        if targetId then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetId)
+        local tid = GetNext()
+        if tid then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, tid)
         else
             TeleportService:Teleport(game.PlaceId)
         end
-        
-        -- Nếu bị kẹt ở màn hình Full quá 15 giây, nó sẽ tự lặp lại để tìm server khác
         task.wait(15)
-        print("🔄 Vẫn kẹt ở server cũ, đang thử nhảy lại...")
     end
 end
 
--- ===== QUÉT MÔ HÌNH =====
-local function CheckModel(obj)
-    if not obj:IsA("Model") then return end
-    local pet = MatchPet(obj.Name)
-    if pet and not FOUND[pet] then
-        FOUND[pet] = true
-        FOUND_COUNT += 1
-        print("🎯 TÌM THẤY:", pet)
-    end
-end
+-- ===== MAIN =====
+local FOUND = {}
+local COUNT = 0
 
--- ===== CHẠY CHÍNH =====
 task.spawn(function()
-    print("⚡ Đang quét server...")
-
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        CheckModel(obj)
+    print("🚀 Đang quét server...")
+    for _, v in ipairs(workspace:GetDescendants()) do
+        local p = MatchPet(v.Name)
+        if p and not FOUND[p] then FOUND[p] = true COUNT += 1 end
     end
 
-    workspace.DescendantAdded:Connect(CheckModel)
-
-    task.wait(3)
-
-    if FOUND_COUNT > 0 then
-        SendWebhook()
-        print("⏳ Đợi 45 giây cho acc chính...")
+    if COUNT > 0 then
+        SendWebhook(FOUND, COUNT)
+        print("✅ Đã báo Discord. Đang đợi acc chính vào (45s)...")
         task.wait(45)
     else
-        print("❌ Không có pet mục tiêu.")
+        print("❌ Không có pet. Đang nhảy server...")
         task.wait(1)
     end
-
     HopServer()
 end)
