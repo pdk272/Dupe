@@ -2,9 +2,9 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(1)
 
 -- ===== CONFIG =====
-local WEBHOOK_URL = "YOUR_WEBHOOK"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 
-local MIN_MONEY = 20000000 -- 20M (bạn đổi tùy thích)
+local MIN_MONEY = 5000000 -- 20M
 
 local TARGET_PETS = {
     "elefanto frigo","dug dug dug","las sis","nuclearo dinossauro",
@@ -31,27 +31,7 @@ local function Normalize(str)
     return (str or ""):lower():gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
 end
 
--- ===== PARSE MONEY =====
-local function ParseMoney(str)
-    if not str then return 0 end
-
-    local num, suffix = str:match("%$([%d%.]+)%s*([KMBkmb]?)")
-    num = tonumber(num)
-
-    if not num then return 0 end
-
-    if suffix == "k" or suffix == "K" then
-        num *= 1e3
-    elseif suffix == "m" or suffix == "M" then
-        num *= 1e6
-    elseif suffix == "b" or suffix == "B" then
-        num *= 1e9
-    end
-
-    return num
-end
-
--- ===== MATCH =====
+-- ===== MATCH PET =====
 local function MatchPet(text)
     text = Normalize(text)
 
@@ -66,16 +46,40 @@ local function MatchPet(text)
     end
 end
 
+-- ===== LẤY TIỀN ĐÚNG FORMAT $50M/s =====
+local function GetMoneyFromText(txt)
+    return txt:match("%$[%d%.]+%s*[KMBkmb]?/s")
+end
+
+-- ===== PARSE TIỀN =====
+local function ParseMoney(str)
+    if not str then return 0 end
+
+    local num, suffix = str:match("%$([%d%.]+)%s*([KMBkmb]?)")
+    num = tonumber(num)
+    if not num then return 0 end
+
+    if suffix == "k" or suffix == "K" then
+        num *= 1e3
+    elseif suffix == "m" or suffix == "M" then
+        num *= 1e6
+    elseif suffix == "b" or suffix == "B" then
+        num *= 1e9
+    end
+
+    return num
+end
+
 -- ===== ADD =====
 local function AddPet(pet, moneyStr)
     local value = ParseMoney(moneyStr)
 
-    if value < MIN_MONEY then return end -- ❗ lọc tiền
+    if value < MIN_MONEY then return end
 
     if not FOUND[pet] then
         FOUND[pet] = moneyStr or "?"
         FOUND_COUNT += 1
-        print("💰 GOOD PET:", pet, moneyStr)
+        print("💰 GOOD:", pet, moneyStr)
     end
 end
 
@@ -88,16 +92,23 @@ local function Check(obj)
 
         local pet = MatchPet(txt)
         if pet then
-            local money = txt:match("%$[%d%.]+%s*[KMBkmb]?")
-            AddPet(pet, money)
+            local moneyStr = GetMoneyFromText(txt)
+            local value = ParseMoney(moneyStr)
+
+            -- DEBUG (có thể tắt)
+            print("DEBUG:", pet, moneyStr, value)
+
+            if value >= MIN_MONEY then
+                AddPet(pet, moneyStr)
+            end
         end
     end
 end
 
--- ===== SCAN NHẸ (GIẢM LAG) =====
+-- ===== SCAN NHẸ =====
 local function FastScan()
     local list = game:GetDescendants()
-    local chunk = math.ceil(#list / 3) -- giảm còn 3 luồng
+    local chunk = math.ceil(#list / 3)
 
     for i = 1, 3 do
         task.spawn(function()
@@ -117,7 +128,10 @@ local function SendWebhook()
         request or http_request or
         (http and http.request)
 
-    if not req then return end
+    if not req then
+        warn("❌ NO HTTP")
+        return
+    end
 
     local text = ""
     for pet, money in pairs(FOUND) do
@@ -133,8 +147,8 @@ local function SendWebhook()
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "💰 GOOD PET FOUND ("..FOUND_COUNT..")",
-                    description = "```"..text.."```\n[JOIN]("..link..")",
+                    title = "💰 GOOD PET ("..FOUND_COUNT..")",
+                    description = "```"..text.."```\n[JOIN SERVER]("..link..")",
                     color = 65280
                 }}
             })
@@ -142,9 +156,10 @@ local function SendWebhook()
     end)
 
     SENT = true
+    print("📡 SENT WEBHOOK")
 end
 
--- ===== HOP =====
+-- ===== HOP SERVER =====
 local function HopServer()
     local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"
 
@@ -157,6 +172,7 @@ local function HopServer()
 
         for _, v in ipairs(data.data) do
             if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                print("🚀 HOP:", v.id)
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
                 break
             end
@@ -168,7 +184,7 @@ end
 
 -- ===== MAIN =====
 task.spawn(function()
-    print("⚡ SCAN START")
+    print("⚡ START")
 
     FastScan()
     game.DescendantAdded:Connect(Check)
