@@ -26,7 +26,7 @@ local TARGET_PETS = {
     "Hydra Bunny","Celestial Pegasus","Los Amigos","Fragola La La La",
     "Mieteteira Bicicleteira","Los Puggies","Los Spaghettis","La Spooky Grande",
     "Antonio","La Casa Boo","Reinito Sleighito","Popcuru and Fizzuru","Quackini Snackini",
-    "Los Mariachis","Gym Bros","Fortunu and Cashuru","Esok Sekolah","Spaghetti Tualetti","pipi kiwi"
+    "Los Mariachis","Gym Bros","Fortunu and Cashuru","Esok Sekolah","Spaghetti Tualetti"
 }
 
 local HttpService = game:GetService("HttpService")
