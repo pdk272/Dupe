@@ -32,6 +32,7 @@ local TARGET_PETS = {
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = game:GetService("Players").LocalPlayer
 
 -- ===== LỊCH SỬ SERVER =====
 local function saveServer(jobId)
@@ -78,6 +79,10 @@ local function SendWebhook(petString)
     local req = (syn and syn.request) or request or http_request
     if not req then return end
     local deepLink = "roblox://experiences/start?placeId="..game.PlaceId.."&gameInstanceId="..game.JobId
+    
+    -- Lấy tên acc hiện tại
+    local accName = LocalPlayer.Name
+    
     pcall(function()
         req({
             Url = WEBHOOK_URL,
@@ -86,9 +91,11 @@ local function SendWebhook(petString)
             Body = HttpService:JSONEncode({
                 embeds = {{
                     title = "🎯 PHÁT HIỆN HÀNG (ACC " .. ACC_INDEX .. ")!",
-                    description = "📦 **Pet:**\n" .. petString .. "\n**JobId:** `" .. game.JobId .. "`",
+                    -- Hiển thị tên người phát hiện ở phần description
+                    description = "👤 **Người phát hiện:** `" .. accName .. "`\n📦 **Danh sách Pet:**\n" .. petString .. "\n**JobId:** `" .. game.JobId .. "`",
                     fields = {{name = "🚀 Join Nhanh", value = "[NHẤN VÀO ĐÂY]("..deepLink..")", inline = false}},
-                    color = 0x00FF00
+                    color = 0x00FF00,
+                    footer = {text = "Dò bởi: " .. accName}
                 }}
             })
         })
@@ -125,7 +132,7 @@ end
 
 -- ===== CHẠY CHÍNH =====
 task.spawn(function()
-    print("⏳ Đang đợi 5 giây load map...")
+    print("⏳ Đang đợi 5 giây load map cho acc: " .. LocalPlayer.Name)
     task.wait(5) 
     local res, c = ScanPets()
     if c > 0 then
