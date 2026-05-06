@@ -18,15 +18,15 @@ local TARGET_PETS = {
     "los hotspotsitos", "tralaledon", "celularcini viciosini",
     "tictac sahur", "la supreme combinasion", "ketupat kepat",
     "ketchuru and musturu", "burguro and fryuro", "cooki and milki",
-    "capitano moby", "cerberus", "skibidi toilet",
-    "strawberry elephant", "lavadorito spinito","guest 666",
-    "la ginger sekolah","dragon gingerini","jolly jolly sahur",
-    "ketupat bros","cloverat clapat","cash or card",
+    "capitano moby", "cerberus", "skibidi toilet", "strawberry elephant", 
+    "lavadorito spinito","guest 666", "la ginger sekolah","dragon gingerini",
+    "jolly jolly sahur", "ketupat bros","cloverat clapat","cash or card",
     "pretzo robo","john doe","money money bros","mariachi corazoni",
     "hydra bunny","celestial pegasus","los amigos","fragola la la la",
     "mieteteira bicicleteira","los puggies","los spaghettis","la spooky grande",
-    "antonio","la casa boo","reinito sleighito","popcuru and fizzuru","quackini snackini",
-    "los mariachis","gym bros","fortunu and cashuru","esok sekolah","spaghetti tualetti"
+    "antonio","la casa boo","reinito sleighito","popcuru and fizzuru",
+    "quackini snackini", "los mariachis","gym bros","fortunu and cashuru",
+    "esok sekolah","spaghetti tualetti", "brainrot"
 }
 
 local HttpService = game:GetService("HttpService")
@@ -75,11 +75,10 @@ local function ScanPets()
     return petString, count
 end
 
--- ===== GỬI WEBHOOK (CÓ NÚT SAO CHÉP JOBID) =====
+-- ===== GỬI WEBHOOK (CÓ LINK NHẢY THẲNG) =====
 local function SendWebhook(petString)
     local req = (syn and syn.request) or request or http_request
     if not req then return end
-    
     local deepLink = "roblox://experiences/start?placeId="..game.PlaceId.."&gameInstanceId="..game.JobId
     
     pcall(function()
@@ -89,22 +88,14 @@ local function SendWebhook(petString)
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "🎯 [" .. (ACC_INDEX == 1 and "MASTER" or "ACC " .. ACC_INDEX) .. "] ĐÃ THẤY PET!",
+                    title = "🎯 [" .. (ACC_INDEX == 1 and "MASTER" or "ACC " .. ACC_INDEX) .. "] ĐÃ THẤY HÀNG!",
                     description = "📦 **Danh sách Pet:**\n" .. petString,
                     fields = {
-                        {
-                            name = "🔑 JobId (Nhấn để chọn và Copy)", 
-                            value = "```" .. game.JobId .. "```", 
-                            inline = false
-                        },
-                        {
-                            name = "🚀 Vào Server Nhanh", 
-                            value = "[NHẤN VÀO ĐÂY ĐỂ MỞ ROBLOX](" .. deepLink .. ")", 
-                            inline = false
-                        }
+                        {name = "🔑 JobId", value = "```" .. game.JobId .. "```", inline = false},
+                        {name = "🚀 Vào Ngay", value = "[BẤM ĐỂ HÚP BRAINROT](" .. deepLink .. ")", inline = false}
                     },
                     color = 0x00FF00,
-                    footer = {text = "Dùng RAM + Bloxstrap để treo 24/24 | Acc số: " .. ACC_INDEX}
+                    footer = {text = "Acc số: " .. ACC_INDEX}
                 }}
             })
         })
@@ -122,7 +113,6 @@ local function HopServer()
             local segment = math.floor(#servers / MAX_ACCS)
             local startIdx = ((ACC_INDEX - 1) * segment) + 1
             local endIdx = math.min(ACC_INDEX * segment, #servers)
-            
             for i = startIdx, endIdx do
                 local srv = servers[i]
                 if srv and srv.id ~= game.JobId and srv.playing <= (srv.maxPlayers - 2) then
@@ -135,25 +125,19 @@ local function HopServer()
 
     while true do
         local tid = GetNext()
-        if tid then TeleportService:TeleportToPlaceInstance(game.PlaceId, tid) end
+        if tid then TeleportService:TeleportToPlaceInstance(game.PlaceId, tid) 
+        else TeleportService:Teleport(game.PlaceId) end
         task.wait(5)
     end
 end
 
--- ===== CHẠY CHÍNH =====
 task.spawn(function()
-    print("⏳ Chờ 5 giây cho Pet load...")
+    print("⏳ Chờ 5s load pet...")
     task.wait(5) 
-
     local petResult, totalFound = ScanPets()
-
     if totalFound > 0 then
-        print("🎯 Đã thấy hàng! Đang báo lên Discord...")
         SendWebhook(petResult)
-        task.wait(60) -- Giữ server 1 phút để ông kịp copy JobId hoặc bấm Join
-    else
-        print("❌ Server trống. Đang nhảy...")
+        task.wait(60) 
     end
-    
     HopServer()
 end)
