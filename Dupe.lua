@@ -2,12 +2,12 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(1)
 
 -- ===== CẤU HÌNH =====
-local ACC_INDEX = 1  -- QUAN TRỌNG: Đổi số này cho mỗi acc (1, 2, 3... đến 10)
+local ACC_INDEX = 1  -- Đổi từ 1 đến 10 cho mỗi acc
 local MAX_ACCS = 10  
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 local FILENAME = "server_history.json"
 
--- ===== TỐI ƯU HÓA GIẢM LAG (MÀN HÌNH ĐEN) =====
+-- ===== TỐI ƯU GIẢM LAG (MÀN HÌNH ĐEN) =====
 settings().Rendering.QualityLevel = 1
 game:GetService("RunService"):Set3dRenderingEnabled(false) 
 
@@ -19,14 +19,14 @@ local TARGET_PETS = {
     "tictac sahur", "la supreme combinasion", "ketupat kepat",
     "ketchuru and musturu", "burguro and fryuro", "cooki and milki",
     "capitano moby", "cerberus", "skibidi toilet",
-    "strawberry elephant", "lavadorito spinito","Guest 666",
-    "La Ginger Sekolah","Dragon Gingerini","Jolly Jolly Sahur",
-    "Ketupat Bros","Cloverat Clapat","Cash or Card",
-    "Pretzo Robo","John Doe","Money Money Bros","Mariachi Corazoni",
-    "Hydra Bunny","Celestial Pegasus","Los Amigos","Fragola La La La",
-    "Mieteteira Bicicleteira","Los Puggies","Los Spaghettis","La Spooky Grande",
-    "Antonio","La Casa Boo","Reinito Sleighito","Popcuru and Fizzuru","Quackini Snackini",
-    "Los Mariachis","Gym Bros","Fortunu and Cashuru","Esok Sekolah","Spaghetti Tualetti"
+    "strawberry elephant", "lavadorito spinito","guest 666",
+    "la ginger sekolah","dragon gingerini","jolly jolly sahur",
+    "ketupat bros","cloverat clapat","cash or card",
+    "pretzo robo","john doe","money money bros","mariachi corazoni",
+    "hydra bunny","celestial pegasus","los amigos","fragola la la la",
+    "mieteteira bicicleteira","los puggies","los spaghettis","la spooky grande",
+    "antonio","la casa boo","reinito sleighito","popcuru and fizzuru","quackini snackini",
+    "los mariachis","gym bros","fortunu and cashuru","esok sekolah","spaghetti tualetti"
 }
 
 local HttpService = game:GetService("HttpService")
@@ -65,15 +65,21 @@ local function ScanPets()
             end
         end
     end
-    return found, count
+    
+    local petString = ""
+    if count > 0 then
+        for petName, _ in pairs(found) do
+            petString = petString .. "✅ " .. petName .. "\n"
+        end
+    end
+    return petString, count
 end
 
--- ===== GỬI WEBHOOK =====
-local function SendWebhook(foundList)
+-- ===== GỬI WEBHOOK (CÓ NÚT SAO CHÉP JOBID) =====
+local function SendWebhook(petString)
     local req = (syn and syn.request) or request or http_request
     if not req then return end
-    local petText = ""
-    for pet in pairs(foundList) do petText = petText .. "• " .. pet .. "\n" end
+    
     local deepLink = "roblox://experiences/start?placeId="..game.PlaceId.."&gameInstanceId="..game.JobId
     
     pcall(function()
@@ -83,10 +89,22 @@ local function SendWebhook(foundList)
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "🎯 TÌM THẤY PET HIẾM!",
-                    description = "```\n" .. petText .. "```\n**Acc quét số:** " .. ACC_INDEX .. "\n**JobId:** `" .. game.JobId .. "`",
-                    fields = {{name = "👉 Link Vào Ngay", value = "[NHẤN ĐỂ MỞ APP]("..deepLink..")", inline = false}},
-                    color = 0x00FF00
+                    title = "🎯 [" .. (ACC_INDEX == 1 and "MASTER" or "ACC " .. ACC_INDEX) .. "] ĐÃ THẤY PET!",
+                    description = "📦 **Danh sách Pet:**\n" .. petString,
+                    fields = {
+                        {
+                            name = "🔑 JobId (Nhấn để chọn và Copy)", 
+                            value = "```" .. game.JobId .. "```", 
+                            inline = false
+                        },
+                        {
+                            name = "🚀 Vào Server Nhanh", 
+                            value = "[NHẤN VÀO ĐÂY ĐỂ MỞ ROBLOX](" .. deepLink .. ")", 
+                            inline = false
+                        }
+                    },
+                    color = 0x00FF00,
+                    footer = {text = "Dùng RAM + Bloxstrap để treo 24/24 | Acc số: " .. ACC_INDEX}
                 }}
             })
         })
@@ -125,16 +143,16 @@ end
 -- ===== CHẠY CHÍNH =====
 task.spawn(function()
     print("⏳ Chờ 5 giây cho Pet load...")
-    task.wait(5) -- Đợi đúng 5 giây như ông yêu cầu
+    task.wait(5) 
 
-    local list, c = ScanPets()
+    local petResult, totalFound = ScanPets()
 
-    if c > 0 then
-        print("🎯 Đã thấy hàng! Báo Discord...")
-        SendWebhook(list)
-        task.wait(60) -- Tìm thấy thì đứng im 1 phút chờ ông vào húp
+    if totalFound > 0 then
+        print("🎯 Đã thấy hàng! Đang báo lên Discord...")
+        SendWebhook(petResult)
+        task.wait(60) -- Giữ server 1 phút để ông kịp copy JobId hoặc bấm Join
     else
-        print("❌ Server này không có. Nhảy tiếp...")
+        print("❌ Server trống. Đang nhảy...")
     end
     
     HopServer()
