@@ -2,7 +2,7 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(1)
 
 -- ===== CẤU HÌNH =====
-local ACC_INDEX = 1  -- Đổi từ 1 đến 10
+local ACC_INDEX = 1  
 local MAX_ACCS = 10  
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1501273736580567132/8eMKz7k1UtE1F_3zcE2zOiO750wRM3umAYEZEjWsxAspbt16PnxmI4Mp-xSc7nVWlwk6"
 local FILENAME = "server_history.json"
@@ -27,7 +27,7 @@ local TARGET_PETS = {
     "mieteteira bicicleteira","los puggies","los spaghettis","la spooky grande",
     "antonio","la casa boo","reinito sleighito","popcuru and fizzuru","quackini snackini",
     "los mariachis","cerberus","fortunu and cashuru","pipi kiwi","spaghetti tualetti",
-    "OG","esok sekola"
+    "OG","esok sekola", "brainrot"
 }
 
 local HttpService = game:GetService("HttpService")
@@ -50,38 +50,34 @@ local function isServerVisited(jobId)
     return s and history[jobId] ~= nil
 end
 
--- ===== HÀM QUÉT PET (ĐỢI 5S LOAD) =====
+-- ===== HÀM QUÉT PET TỐI ƯU (KHÔNG SÓT CON NÀO) =====
 local function ScanPets()
-    local found = {}
-    local count = 0
+    local foundList = {}
+    local totalCount = 0
+    
+    -- Quét sâu vào toàn bộ workspace
     for _, v in ipairs(workspace:GetDescendants()) do
         if v:IsA("Model") or v:IsA("BasePart") then
             local name = v.Name:lower()
             for _, target in ipairs(TARGET_PETS) do
                 if string.find(name, target, 1, true) then
-                    if not found[target] then
-                        found[target] = true
-                        count = count + 1
-                    end
+                    totalCount = totalCount + 1
+                    table.insert(foundList, "✅ ["..totalCount.."] " .. v.Name)
+                    break -- Tìm thấy tên khớp thì nhảy sang vật thể tiếp theo
                 end
             end
         end
     end
-    local petString = ""
-    if count > 0 then
-        for petName, _ in pairs(found) do petString = petString .. "✅ " .. petName .. "\n" end
-    end
-    return petString, count
+    
+    local petString = table.concat(foundList, "\n")
+    return petString, totalCount
 end
 
 -- ===== GỬI WEBHOOK =====
-local function SendWebhook(petString)
+local function SendWebhook(petString, count)
     local req = (syn and syn.request) or request or http_request
     if not req then return end
     local deepLink = "roblox://experiences/start?placeId="..game.PlaceId.."&gameInstanceId="..game.JobId
-    
-    -- Lấy tên acc hiện tại
-    local accName = LocalPlayer.Name
     
     pcall(function()
         req({
@@ -90,19 +86,18 @@ local function SendWebhook(petString)
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 embeds = {{
-                    title = "🎯 PHÁT HIỆN HÀNG (ACC " .. ACC_INDEX .. ")!",
-                    -- Hiển thị tên người phát hiện ở phần description
-                    description = "👤 **Người phát hiện:** `" .. accName .. "`\n📦 **Danh sách Pet:**\n" .. petString .. "\n**JobId:** `" .. game.JobId .. "`",
-                    fields = {{name = "🚀 Join Nhanh", value = "[NHẤN VÀO ĐÂY]("..deepLink..")", inline = false}},
+                    title = "🎯 PHÁT HIỆN " .. count .. " PET HIẾM!",
+                    description = "👤 **Acc:** `" .. LocalPlayer.Name .. "` (Vùng " .. ACC_INDEX .. ")\n\n📦 **Danh sách chi tiết:**\n" .. petString .. "\n\n🔑 **JobId:** `" .. game.JobId .. "`",
+                    fields = {{name = "🚀 Join Server", value = "[BẤM VÀO ĐÂY ĐỂ VÀO HÚP]("..deepLink..")", inline = false}},
                     color = 0x00FF00,
-                    footer = {text = "Dò bởi: " .. accName}
+                    footer = {text = "Thời gian: " .. os.date("%X") .. " | Bot ID: " .. ACC_INDEX}
                 }}
             })
         })
     end)
 end
 
--- ===== NHẢY SERVER (CHIA VÙNG + CHỐNG KẸT) =====
+-- ===== NHẢY SERVER =====
 local function HopServer()
     saveServer(game.JobId)
     local function GetNext()
@@ -132,12 +127,19 @@ end
 
 -- ===== CHẠY CHÍNH =====
 task.spawn(function()
-    print("⏳ Đang đợi 5 giây load map cho acc: " .. LocalPlayer.Name)
+    print("⏳ Đợi 5s cho acc: " .. LocalPlayer.Name .. " load pet...")
     task.wait(5) 
-    local res, c = ScanPets()
-    if c > 0 then
-        SendWebhook(res)
-        task.wait(60) 
+    
+    local res, count = ScanPets()
+    
+    if count > 0 then
+        print("🎯 Tìm thấy " .. count .. " pet! Đang báo lên Discord...")
+        SendWebhook(res, count)
+        print("⏳ Đang đợi 60s cho ông vào húp...")
+        task.wait(60) -- Đợi 1 phút chuẩn chỉ
+    else
+        print("❌ Không thấy gì, đang đổi server...")
     end
+    
     HopServer()
 end)
