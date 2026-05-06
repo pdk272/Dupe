@@ -26,7 +26,7 @@ local TARGET_PETS = {
     "hydra bunny","ketupat bros","los amigos","fragola la la la",
     "mieteteira bicicleteira","los puggies","los spaghettis","la spooky grande",
     "antonio","la casa boo","reinito sleighito","popcuru and fizzuru","quackini snackini",
-    "los mariachis","cerberus","fortunu and cashuru","pipi kiwi","spaghetti tualetti",
+    "los mariachis","cerberus","fortunu and cashuru","cigo","spaghetti tualetti",
     "OG","esok sekola"
 }
 
