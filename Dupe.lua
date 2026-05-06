@@ -27,7 +27,7 @@ local TARGET_PETS = {
     "mieteteira bicicleteira","los puggies","los spaghettis","la spooky grande",
     "antonio","la casa boo","reinito sleighito","popcuru and fizzuru","quackini snackini",
     "los mariachis","cerberus","fortunu and cashuru","pipi kiwi","spaghetti tualetti",
-    "OG","esok sekola", "brainrot"
+    "OG","esok sekola"
 }
 
 local HttpService = game:GetService("HttpService")
