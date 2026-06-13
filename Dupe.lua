@@ -1,39 +1,3 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
-task.wait(1)
-
--- ===== CẤU HÌNH =====
-local ACC_INDEX = 1  
-local MAX_ACCS = 10  
--- DÁN WEBHOOK CỦA BẠN VÀO DƯỚI ĐÂY (TRONG DẤU NHÁY KÉP)
-local https://discord.com/api/webhooks/1515485914313523210/rD2F_rNDQQHkx3Rb14-9JrIoQZOFG7debWBkX__kPUte3r8vMuTTMyWptAC_ETaoIiav= "" 
-local FILENAME = "server_history.json"
-
--- ===== TỐI ƯU HÓA =====
-pcall(function()
-    settings().Rendering.QualityLevel = 1
-    game:GetService("RunService"):Set3dRenderingEnabled(false)
-end)
-
--- ===== DANH SÁCH PET (CHỈ CÒN NHỮNG PET BẠN MUỐN) =====
-local TARGET_PETS = {
-    "raccon", 
-    "dragon fly",
-    "Owl"
-}
-
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
--- ===== SERVER HISTORY =====
-local function loadHistory()
-    local data = {}
-    pcall(function()
-        if isfile(FILENAME) then
-            data = HttpService:JSONDecode(readfile(FILENAME))
-        end
-    end)
-    return data
 end
 
 local function saveHistory(data)
